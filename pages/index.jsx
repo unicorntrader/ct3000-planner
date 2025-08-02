@@ -30,6 +30,11 @@ alertcondition(${trigger}, title="${trigger.charAt(0).toUpperCase() + trigger.sl
     setWebhookJson(JSON.stringify(json, null, 2));
   };
 
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    alert('Copied to clipboard');
+  };
+
   return (
     <div style={{ padding: "2rem", fontFamily: "sans-serif" }}>
       <h1>Plan Trader - Trade Watch Setup</h1>
@@ -54,10 +59,12 @@ alertcondition(${trigger}, title="${trigger.charAt(0).toUpperCase() + trigger.sl
       <button onClick={generate} style={{ marginRight: "1rem", padding: "0.5rem 1rem" }}>Generate</button>
       <button onClick={() => router.push('/console')} style={{ padding: "0.5rem 1rem" }}>Webhook Console</button>
 
-      <h2>Pine Script</h2>
+      <h2 style={{ marginTop: "2rem" }}>Pine Script</h2>
+      <button onClick={() => copyToClipboard(pineCode)} style={{ marginBottom: "0.5rem" }}>📋 Copy</button>
       <pre style={{ background: "#f0f0f0", padding: "1rem" }}>{pineCode}</pre>
 
-      <h2>Webhook JSON</h2>
+      <h2 style={{ marginTop: "2rem" }}>Webhook JSON</h2>
+      <button onClick={() => copyToClipboard(webhookJson)} style={{ marginBottom: "0.5rem" }}>📋 Copy</button>
       <pre style={{ background: "#f9f9f9", padding: "1rem" }}>{webhookJson}</pre>
     </div>
   );
