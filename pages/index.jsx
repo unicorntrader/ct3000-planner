@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import Head from 'next/head';
 
 export default function Home() {
   const [ticker, setTicker] = useState('');
@@ -7,51 +8,42 @@ export default function Home() {
   const [webhookJson, setWebhookJson] = useState('');
   const [explanation, setExplanation] = useState('');
 
+  useEffect(() => {
+    const getExplanation = () => {
+      switch (trigger) {
+        case 'breakout':
+          return 'Detects if price breaks above the highest high over the last 20 candles. Useful for momentum breakout strategies.';
+        case 'retest':
+          return 'Looks for a bullish retest: candle closes above resistance, then price returns and bounces off that level.';
+        case 'hhhl':
+          return 'Tracks higher-high/higher-low structure over 5 candles. Helps identify sustained uptrends.';
+        default:
+          return '';
+      }
+    };
+    setExplanation(getExplanation());
+  }, [trigger]);
+
   const generate = () => {
-    let pine = '';
-    let explanationText = '';
+    const pine = `//@version=5
+indicator("Trade Watch: ${trigger} Trigger", overlay=true)
 
-    switch (trigger) {
-      case 'breakout':
-        pine = `//@version=5
-indicator("Trade Watch: Breakout Trigger", overlay=true)
+${trigger === 'breakout' ? `
 resistance = ta.highest(high, 20)
-breakout = close > resistance
-plotshape(breakout, location=location.belowbar, style=shape.labelup, color=color.green, text="🚨")
-alertcondition(breakout, title="Breakout Trigger", message='{"userId":"anton123","symbol":"{{ticker}}","setup":"breakout","price":{{close}},"volume":{{volume}},"timestamp":"{{time"}}')`;
-
-        explanationText = `Breakout Trigger: Detects when price closes above the highest high of the last 20 candles on the user's chart timeframe.
-
-⚠️ Timeframe note: If you're on the 5-min chart, this means the last 100 minutes. On the daily chart, it's the last 20 days. Pine Script inherits the timeframe from the chart.`;
-        break;
-      case 'retest':
-        pine = `//@version=5
-indicator("Trade Watch: Retest Trigger", overlay=true)
-support = ta.lowest(low, 20)
-retest = close < support
-plotshape(retest, location=location.abovebar, style=shape.labeldown, color=color.red, text="🔻")
-alertcondition(retest, title="Retest Trigger", message='{"userId":"anton123","symbol":"{{ticker}}","setup":"retest","price":{{close}},"volume":{{volume}},"timestamp":"{{time"}}')`;
-
-        explanationText = `Retest Trigger: Detects when price closes below the lowest low of the last 20 candles, signaling potential breakdown or retest of a previous support.
-
-⚠️ Timeframe note: Inherits from the chart — works on any timeframe.`;
-        break;
-      case 'hhhl':
-        pine = `//@version=5
-indicator("Trade Watch: HH/HL Structure", overlay=true)
+trigger = close > resistance
+` : trigger === 'retest' ? `
+resistance = ta.highest(high, 20)
+broken = close[1] > resistance[1]
+retest = close < resistance and close > open
+trigger = broken and retest
+` : `
 hh = high > high[1] and high[1] > high[2]
 hl = low > low[1] and low[1] > low[2]
-trendStructure = hh and hl
-plotshape(trendStructure, location=location.belowbar, style=shape.triangleup, color=color.blue, text="📈")
-alertcondition(trendStructure, title="HH/HL Trigger", message='{"userId":"anton123","symbol":"{{ticker}}","setup":"hhhl","price":{{close}},"volume":{{volume}},"timestamp":"{{time"}}')`;
+trigger = hh and hl
+`}
 
-        explanationText = `HH/HL Trigger: Detects a trend continuation pattern — when both higher highs and higher lows form.
-
-⚠️ Timeframe note: Structure is checked based on bar-to-bar highs/lows — applies to the chart timeframe.`;
-        break;
-      default:
-        break;
-    }
+plotshape(trigger, location=location.belowbar, style=shape.labelup, color=color.green, text="🚨")
+alertcondition(trigger, title="${trigger} Trigger", message='{"userId":"anton123","symbol":"{{ticker}}","setup":"${trigger}","price":{{close}},"volume":{{volume}},"timestamp":"{{time"}}')`;
 
     const json = {
       userId: "anton123",
@@ -62,40 +54,125 @@ alertcondition(trendStructure, title="HH/HL Trigger", message='{"userId":"anton1
       timestamp: "{{time}}"
     };
 
-    setPineCode(pine);
+    setPineCode(pine.trim());
     setWebhookJson(JSON.stringify(json, null, 2));
-    setExplanation(explanationText);
   };
 
   return (
-    <div style={{ padding: "2rem", fontFamily: "sans-serif", maxWidth: 1000, margin: '0 auto' }}>
-      <h1 style={{ fontSize: '2rem' }}>Plan Trader - Trade Watch Setup</h1>
-      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-        <input style={{ padding: '0.5rem', flex: 1 }} value={ticker} onChange={e => setTicker(e.target.value)} placeholder="Ticker (e.g. AAPL)" />
-        <select style={{ padding: '0.5rem' }} value={trigger} onChange={e => setTrigger(e.target.value)}>
-          <option value="breakout">Breakout</option>
-          <option value="retest">Retest</option>
-          <option value="hhhl">HH/HL</option>
-        </select>
-        <button onClick={generate} style={{ padding: '0.5rem 1rem' }}>Generate</button>
-      </div>
+    <>
+      <Head>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+        <style>{`
+          body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background: #f9f9f9;
+            color: #111;
+          }
+          code {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+          }
+        `}</style>
+      </Head>
 
-      <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
-        <div style={{ flex: 1 }}>
-          <h2>Pine Script</h2>
-          <pre style={{ background: "#f0f0f0", padding: "1rem", whiteSpace: 'pre-wrap', overflowX: 'auto' }}>{pineCode}</pre>
-        </div>
+    <div style={{ padding: '2rem', maxWidth: '900px', margin: '0 auto' }}>
+  <h1 style={{ fontSize: '32px', fontWeight: 600, marginBottom: '1rem' }}>📈 Plan Trader — Trade Watch Generator</h1>
 
-        <div style={{ flex: 1 }}>
-          <h2>Strategy Explanation</h2>
-          <pre style={{ background: "#e0f7ff", padding: "1rem", whiteSpace: 'pre-wrap' }}>{explanation}</pre>
-        </div>
-      </div>
+  <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+    <input
+      value={ticker}
+      onChange={e => setTicker(e.target.value)}
+      placeholder="Ticker (e.g. AAPL)"
+      style={{ padding: '10px', fontSize: '18px', flex: '1 1 200px' }}
+    />
+    <select
+      value={trigger}
+      onChange={e => setTrigger(e.target.value)}
+      style={{ padding: '10px', fontSize: '18px', flex: '1 1 200px' }}
+    >
+      <option value="breakout">Breakout</option>
+      <option value="retest">Retest</option>
+      <option value="hhhl">HH/HL Structure</option>
+    </select>
+    <button
+      onClick={generate}
+      style={{ padding: '10px 20px', fontSize: '18px', cursor: 'pointer', background: '#111', color: '#fff', border: 'none' }}
+    >
+      🚀 Generate
+    </button>
+  </div>
 
-      <div style={{ marginTop: '2rem' }}>
-        <h2>Webhook JSON</h2>
-        <pre style={{ background: "#f9f9f9", padding: "1rem", whiteSpace: 'pre-wrap', overflowX: 'auto' }}>{webhookJson}</pre>
-      </div>
-    </div>
+  <div style={{ marginBottom: '2rem', fontSize: '16px', background: '#eef2f5', padding: '1rem', borderRadius: '6px' }}>
+    <strong>ℹ️ Strategy:</strong> {explanation}
+  </div>
+
+  {/* Pine Script Section */}
+  <h2 style={{ fontSize: '24px' }}>📜 Pine Script</h2>
+  <div style={{ position: 'relative' }}>
+    <button
+      onClick={() => {
+        navigator.clipboard.writeText(pineCode);
+        const el = document.getElementById('pine-copied');
+        el.style.opacity = 1;
+        setTimeout(() => (el.style.opacity = 0), 1500);
+      }}
+      style={{
+        position: 'absolute',
+        top: '10px',
+        right: '10px',
+        fontSize: '14px',
+        padding: '5px 10px',
+        background: '#111',
+        color: '#fff',
+        border: 'none',
+        cursor: 'pointer',
+        borderRadius: '4px'
+      }}
+    >
+      Copy
+    </button>
+    <span id="pine-copied" style={{ position: 'absolute', top: '10px', right: '80px', opacity: 0, transition: 'opacity 0.3s ease', fontSize: '14px' }}>
+      ✅ Copied!
+    </span>
+    <pre style={{ background: '#f0f0f0', padding: '1rem', overflowX: 'auto', fontSize: '15px' }}>
+      <code>{pineCode}</code>
+    </pre>
+  </div>
+
+  {/* Webhook JSON Section */}
+  <h2 style={{ fontSize: '24px' }}>📦 Webhook JSON</h2>
+  <div style={{ position: 'relative' }}>
+    <button
+      onClick={() => {
+        navigator.clipboard.writeText(webhookJson);
+        const el = document.getElementById('json-copied');
+        el.style.opacity = 1;
+        setTimeout(() => (el.style.opacity = 0), 1500);
+      }}
+      style={{
+        position: 'absolute',
+        top: '10px',
+        right: '10px',
+        fontSize: '14px',
+        padding: '5px 10px',
+        background: '#111',
+        color: '#fff',
+        border: 'none',
+        cursor: 'pointer',
+        borderRadius: '4px'
+      }}
+    >
+      Copy
+    </button>
+    <span id="json-copied" style={{ position: 'absolute', top: '10px', right: '80px', opacity: 0, transition: 'opacity 0.3s ease', fontSize: '14px' }}>
+      ✅ Copied!
+    </span>
+    <pre style={{ background: '#f9f9f9', padding: '1rem', overflowX: 'auto', fontSize: '15px' }}>
+      <code>{webhookJson}</code>
+    </pre>
+  </div>
+</div>
+    </>
   );
 }
