@@ -6,6 +6,7 @@ export default function Home() {
   const [trigger, setTrigger] = useState('breakout');
   const [pineCode, setPineCode] = useState('');
   const [webhookJson, setWebhookJson] = useState('');
+  const [copied, setCopied] = useState({ pine: false, json: false });
 
   const router = useRouter();
 
@@ -30,9 +31,10 @@ alertcondition(${trigger}, title="${trigger.charAt(0).toUpperCase() + trigger.sl
     setWebhookJson(JSON.stringify(json, null, 2));
   };
 
-  const copyToClipboard = (text) => {
+  const copyToClipboard = (text, type) => {
     navigator.clipboard.writeText(text);
-    alert('Copied to clipboard');
+    setCopied(prev => ({ ...prev, [type]: true }));
+    setTimeout(() => setCopied(prev => ({ ...prev, [type]: false })), 2000);
   };
 
   return (
@@ -60,11 +62,17 @@ alertcondition(${trigger}, title="${trigger.charAt(0).toUpperCase() + trigger.sl
       <button onClick={() => router.push('/console')} style={{ padding: "0.5rem 1rem" }}>Webhook Console</button>
 
       <h2 style={{ marginTop: "2rem" }}>Pine Script</h2>
-      <button onClick={() => copyToClipboard(pineCode)} style={{ marginBottom: "0.5rem" }}>📋 Copy</button>
+      <button onClick={() => copyToClipboard(pineCode, 'pine')} style={{ marginBottom: "0.25rem" }}>
+        {copied.pine ? '✅' : '📋'} Copy
+      </button>
+      {copied.pine && <div style={{ fontSize: "0.9rem", color: "black", marginBottom: "0.5rem" }}>Copied to clipboard</div>}
       <pre style={{ background: "#f0f0f0", padding: "1rem" }}>{pineCode}</pre>
 
       <h2 style={{ marginTop: "2rem" }}>Webhook JSON</h2>
-      <button onClick={() => copyToClipboard(webhookJson)} style={{ marginBottom: "0.5rem" }}>📋 Copy</button>
+      <button onClick={() => copyToClipboard(webhookJson, 'json')} style={{ marginBottom: "0.25rem" }}>
+        {copied.json ? '✅' : '📋'} Copy
+      </button>
+      {copied.json && <div style={{ fontSize: "0.9rem", color: "black", marginBottom: "0.5rem" }}>Copied to clipboard</div>}
       <pre style={{ background: "#f9f9f9", padding: "1rem" }}>{webhookJson}</pre>
     </div>
   );
