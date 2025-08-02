@@ -1,42 +1,38 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from 'react';
 
 export default function Console() {
-  const [messages, setMessages] = useState([]);
+  const [logs, setLogs] = useState([]);
 
   useEffect(() => {
-    const fetchMessages = async () => {
-      const res = await fetch("/api/webhook-messages");
-      const data = await res.json();
-      setMessages(data);
+    const fetchLogs = async () => {
+      try {
+        const res = await fetch('/api/logs');
+        const data = await res.json();
+        setLogs(data);
+      } catch (error) {
+        console.error('Failed to fetch logs:', error);
+      }
     };
 
-    fetchMessages();
-    const interval = setInterval(fetchMessages, 3000);
+    fetchLogs();
+    const interval = setInterval(fetchLogs, 2000);
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <div style={{ padding: "2rem", fontFamily: "monospace" }}>
+    <div style={{ padding: "2rem", fontFamily: "sans-serif" }}>
       <h1>Webhook Console</h1>
-      {messages.length === 0 ? (
-        <p>No webhook messages yet.</p>
-      ) : (
-        messages.map((msg) => (
-          <div
-            key={msg.id}
-            style={{
-              marginBottom: "1rem",
-              padding: "1rem",
-              border: "1px solid #ccc",
-              borderRadius: "8px",
-              backgroundColor: "#f9f9f9",
-            }}
-          >
-            <div><strong>Time:</strong> {new Date(msg.time).toLocaleString()}</div>
-            <pre>{JSON.stringify(msg.payload, null, 2)}</pre>
-          </div>
-        ))
-      )}
+      <div style={{ marginTop: "1rem", padding: "1rem", background: "#f4f4f4", borderRadius: "4px" }}>
+        {logs.length === 0 ? (
+          <p>No logs yet...</p>
+        ) : (
+          logs.map((log, index) => (
+            <pre key={index} style={{ marginBottom: "1rem", background: "#fff", padding: "1rem", border: "1px solid #ddd" }}>
+              {JSON.stringify(log, null, 2)}
+            </pre>
+          ))
+        )}
+      </div>
     </div>
   );
 }
