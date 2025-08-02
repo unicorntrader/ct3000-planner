@@ -91,7 +91,7 @@ alertcondition(spike, title="Volume Spike", message='{"userId":"anton123","symbo
   };
 
   return (
-    <div style={{ padding: "2rem", fontFamily: "Helvetica, sans-serif", maxWidth: 900, margin: "auto" }}>
+    <div style={{ padding: "2rem", fontFamily: "Inter, sans-serif", maxWidth: 960, margin: "auto" }}>
       <h1 style={{ fontSize: "2rem", marginBottom: "1rem" }}>Plan Trader – Trade Watch Setup</h1>
 
       <div style={{ marginBottom: "1rem" }}>
