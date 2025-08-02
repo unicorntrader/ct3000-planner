@@ -86,15 +86,29 @@ alertcondition(trigger, title="${trigger} Trigger", message='{"userId":"anton123
       placeholder="Ticker (e.g. AAPL)"
       style={{ padding: '10px', fontSize: '18px', flex: '1 1 200px' }}
     />
-    <select
-      value={trigger}
-      onChange={e => setTrigger(e.target.value)}
-      style={{ padding: '10px', fontSize: '18px', flex: '1 1 200px' }}
-    >
-      <option value="breakout">Breakout</option>
-      <option value="retest">Retest</option>
-      <option value="hhhl">HH/HL Structure</option>
-    </select>
+<select
+  value={trigger}
+  onChange={e => setTrigger(e.target.value)}
+  style={{
+    padding: '10px 14px',
+    fontSize: '18px',
+    borderRadius: '6px',
+    border: '1px solid #ccc',
+    appearance: 'none',
+    backgroundColor: '#fff',
+    backgroundImage: 'url("data:image/svg+xml;utf8,<svg fill=\'%23000\' height=\'24\' viewBox=\'0 0 24 24\' width=\'24\' xmlns=\'http://www.w3.org/2000/svg\'><path d=\'M7 10l5 5 5-5z\'/></svg>")',
+    backgroundRepeat: 'no-repeat',
+    backgroundPositionX: 'calc(100% - 10px)',
+    backgroundPositionY: 'center',
+    backgroundSize: '16px',
+    flex: '1 1 200px',
+    minWidth: '220px'
+  }}
+>
+  <option value="breakout">Breakout</option>
+  <option value="retest">Retest</option>
+  <option value="hhhl">HH/HL Structure</option>
+</select>
     <button
       onClick={generate}
       style={{ padding: '10px 20px', fontSize: '18px', cursor: 'pointer', background: '#111', color: '#fff', border: 'none' }}
