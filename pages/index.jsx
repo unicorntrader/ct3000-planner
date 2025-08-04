@@ -7,6 +7,8 @@ export default function Home() {
   const [pineCode, setPineCode] = useState('');
   const [webhookJson, setWebhookJson] = useState('');
   const [explanation, setExplanation] = useState('');
+  const [webhookLogs, setWebhookLogs] = useState([]);
+  const [webhookUrl, setWebhookUrl] = useState('');
 
   useEffect(() => {
     const getExplanation = () => {
@@ -28,9 +30,59 @@ export default function Home() {
       }
     };
     setExplanation(getExplanation());
+    
+    // Set webhook URL based on current domain
+    if (typeof window !== 'undefined') {
+      setWebhookUrl(`${window.location.origin}/api/webhook`);
+    }
   }, [trigger]);
 
-  const generate = () => {
+  // Fetch webhook logs
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        const res = await fetch('/api/webhook-messages');
+        const data = await res.json();
+        setWebhookLogs(data);
+      } catch (error) {
+        console.error('Failed to fetch webhook logs:', error);
+      }
+    };
+
+    fetchLogs();
+    const interval = setInterval(fetchLogs, 3000); // Poll every 3 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  const testWebhook = async () => {
+    try {
+      const testPayload = {
+        userId: "anton123",
+        symbol: ticker.toUpperCase() || "TEST",
+        setup: trigger,
+        price: 150.25,
+        volume: 1000000,
+        timestamp: new Date().toISOString()
+      };
+
+      const response = await fetch('/api/webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(testPayload)
+      });
+
+      if (response.ok) {
+        alert('✅ Test webhook sent successfully!');
+      } else {
+        alert('❌ Test webhook failed');
+      }
+    } catch (error) {
+      alert('❌ Error sending test webhook');
+      console.error(error);
+    }
+  };
     let pine = `//@version=5\nindicator("Trade Watch: ${trigger} Trigger", overlay=true)\n`;
 
     if (trigger === 'breakout') {
@@ -212,6 +264,98 @@ if range_established and low < low[2]
             <code>{webhookJson}</code>
           </pre>
         </div>
+
+        {/* Webhook Configuration Section */}
+        <h2 style={{ fontSize: '24px', marginTop: '2rem' }}>🔗 Webhook Configuration</h2>
+        <div style={{ background: '#f9f9f9', padding: '1rem', borderRadius: '6px', marginBottom: '1rem' }}>
+          <p style={{ margin: '0 0 1rem 0', fontSize: '16px' }}>
+            <strong>Your Webhook URL:</strong>
+          </p>
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            <code style={{ 
+              background: '#e8e8e8', 
+              padding: '8px 12px', 
+              borderRadius: '4px', 
+              flex: 1,
+              fontSize: '14px',
+              wordBreak: 'break-all'
+            }}>
+              {webhookUrl}
+            </code>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(webhookUrl);
+                alert('✅ Webhook URL copied!');
+              }}
+              style={{
+                padding: '8px 16px',
+                fontSize: '14px',
+                background: '#111',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              Copy URL
+            </button>
+            <button
+              onClick={testWebhook}
+              style={{
+                padding: '8px 16px',
+                fontSize: '14px',
+                background: '#28a745',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              Test Webhook
+            </button>
+          </div>
+          <p style={{ margin: '1rem 0 0 0', fontSize: '14px', color: '#666' }}>
+            Copy this URL and paste it into your TradingView alert's webhook URL field.
+          </p>
+        </div>
+
+        {/* Webhook Logs Section */}
+        <h2 style={{ fontSize: '24px' }}>📋 Webhook Logs</h2>
+        <div style={{ 
+          background: '#f4f4f4', 
+          padding: '1rem', 
+          borderRadius: '6px', 
+          maxHeight: '400px', 
+          overflowY: 'auto',
+          marginBottom: '2rem'
+        }}>
+          {webhookLogs.length === 0 ? (
+            <p style={{ margin: 0, color: '#666' }}>No webhook messages received yet...</p>
+          ) : (
+            <div>
+              <p style={{ margin: '0 0 1rem 0', fontSize: '14px', color: '#666' }}>
+                Latest {webhookLogs.length} webhook{webhookLogs.length !== 1 ? 's' : ''} received:
+              </p>
+              {webhookLogs.map((log, index) => (
+                <div key={index} style={{ 
+                  background: '#fff', 
+                  padding: '1rem', 
+                  marginBottom: '0.5rem', 
+                  border: '1px solid #ddd',
+                  borderRadius: '4px'
+                }}>
+                  <div style={{ fontSize: '12px', color: '#666', marginBottom: '0.5rem' }}>
+                    Received: {new Date(log.receivedAt).toLocaleString()}
+                  </div>
+                  <pre style={{ margin: 0, fontSize: '13px', whiteSpace: 'pre-wrap' }}>
+                    {JSON.stringify(log, null, 2)}
+                  </pre>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
       </div>
     </>
   );
