@@ -44,17 +44,26 @@ export default function Home() {
     } else if (trigger === 'ma50') {
       pine += `ma = ta.sma(close, 50)\ntrigger = close < ma\n`;
     } else if (trigger === 'range_breakout') {
-      pine += `// Check for falling trend (3 consecutive red candles)
-falling_trend = close[3] < open[3] and close[2] < open[2] and close[1] < open[1]
+      pine += `// Step 1: Identify when we have 3 consecutive red candles followed by a green one
+three_red_then_green = close[4] < open[4] and close[3] < open[3] and close[2] < open[2] and close[1] > open[1]
 
-// Previous candle turned green (reversal signal)
-reversal_candle = close[1] > open[1]
+// Step 2: When this pattern occurs, establish the range high (the high of that first green candle)
+var float range_high = na
+if three_red_then_green
+    range_high := high[1]
 
-// Current candle breaks above previous candle's high
-breakout = close > high[1]
+// Step 3: After establishing range, trigger when ANY candle breaks above that range high
+// AND doesn't go below the low of the last red candle (maintaining the range)
+range_established = not na(range_high)
+breakout_condition = high > range_high + syminfo.mintick
+still_in_range = low >= low[2]  // Hasn't broken below the range low
 
-// All conditions must be met
-trigger = falling_trend and reversal_candle and breakout\n`;
+// Trigger condition
+trigger = range_established and breakout_condition and still_in_range
+
+// Reset range if we break below (failed breakout)
+if range_established and low < low[2]
+    range_high := na\n`;
     }
 
     pine += `\nplotshape(trigger, location=location.belowbar, style=shape.labelup, color=color.green, text="🚨")\nalertcondition(trigger, title="${trigger} Trigger", message='{"userId":"anton123","symbol":"{{ticker}}","setup":"${trigger}","price":{{close}},"volume":{{volume}},"timestamp":"{{time"}}')`;
