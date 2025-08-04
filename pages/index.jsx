@@ -21,6 +21,8 @@ export default function Home() {
           return 'Triggers when the price breaks below the 10-period moving average. Useful for detecting short-term weakness.';
         case 'ma50':
           return 'Triggers when the price breaks below the 50-period moving average. Highlights longer-term trend shifts.';
+        case 'range_breakout':
+          return 'Detects bottom formation reversals: after a falling trend, triggers when price breaks above the previous candle\'s high following a green reversal candle. Perfect for catching early reversals.';
         default:
           return '';
       }
@@ -41,6 +43,18 @@ export default function Home() {
       pine += `ma = ta.sma(close, 10)\ntrigger = close < ma\n`;
     } else if (trigger === 'ma50') {
       pine += `ma = ta.sma(close, 50)\ntrigger = close < ma\n`;
+    } else if (trigger === 'range_breakout') {
+      pine += `// Check for falling trend (3 consecutive red candles)
+falling_trend = close[3] < open[3] and close[2] < open[2] and close[1] < open[1]
+
+// Previous candle turned green (reversal signal)
+reversal_candle = close[1] > open[1]
+
+// Current candle breaks above previous candle's high
+breakout = close > high[1]
+
+// All conditions must be met
+trigger = falling_trend and reversal_candle and breakout\n`;
     }
 
     pine += `\nplotshape(trigger, location=location.belowbar, style=shape.labelup, color=color.green, text="🚨")\nalertcondition(trigger, title="${trigger} Trigger", message='{"userId":"anton123","symbol":"{{ticker}}","setup":"${trigger}","price":{{close}},"volume":{{volume}},"timestamp":"{{time"}}')`;
@@ -110,6 +124,7 @@ export default function Home() {
             <option value="hhhl">HH/HL Structure</option>
             <option value="ma10">MA10 Breakdown</option>
             <option value="ma50">MA50 Breakdown</option>
+            <option value="range_breakout">Range Breakout</option>
           </select>
           <button
             onClick={generate}
