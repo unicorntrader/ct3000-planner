@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function StrategyVisuals({ selected }) {
   const [selectedStrategy, setSelectedStrategy] = useState(selected || 'breakout');
 
-  // If a parent passes `selected` (e.g., from index.jsx's `trigger`),
-  // keep this component in sync with that selection.
-  React.useEffect(() => {
+  useEffect(() => {
     if (selected) setSelectedStrategy(selected);
   }, [selected]);
+
+  // ...rest exactly as you wrote it
+}
 
   const strategies = {
     breakout: {
