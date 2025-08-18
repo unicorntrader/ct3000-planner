@@ -1,143 +1,112 @@
-import StrategyVisuals from '../components/StrategyVisuals';
-import React, { useState, useEffect } from 'react';
+// pages/index.jsx
+import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
+import StrategyVisuals from '../components/StrategyVisuals';
+
+const explanationFor = (trigger) => {
+  switch (trigger) {
+    case 'breakout':
+      return 'Detects if price breaks above the highest high over the last 20 candles. Useful for momentum breakout strategies.';
+    case 'retest':
+      return 'Looks for a bullish retest: candle closes above resistance, then price returns and bounces off that level.';
+    case 'hhhl':
+      return 'Tracks higher-high/higher-low structure over 5 candles. Helps identify sustained uptrends.';
+    case 'ma10':
+      return 'Triggers when the price breaks below the 10-period moving average. Useful for detecting short-term weakness.';
+    case 'ma50':
+      return 'Triggers when the price breaks below the 50-period moving average. Highlights longer-term trend shifts.';
+    case 'range_breakout':
+      return "Detects bottom reversals: after 3 red candles, a green reversal appears; trigger when price breaks above that green candle's high.";
+    default:
+      return '';
+  }
+};
+
+const pineFor = (trigger) => {
+  let pine = `//@version=5
+indicator("Trade Watch: ${trigger} Trigger", overlay=true)
+`;
+
+  if (trigger === 'breakout') {
+    pine += `resistance = ta.highest(high, 20)
+trigger = close > resistance
+`;
+  } else if (trigger === 'retest') {
+    pine += `resistance = ta.highest(high, 20)
+broken = close[1] > resistance[1]
+retest = close < resistance and close > open
+trigger = broken and retest
+`;
+  } else if (trigger === 'hhhl') {
+    pine += `hh = high > high[1] and high[1] > high[2]
+hl = low > low[1] and low[1] > low[2]
+trigger = hh and hl
+`;
+  } else if (trigger === 'ma10') {
+    pine += `ma = ta.sma(close, 10)
+trigger = close < ma
+`;
+  } else if (trigger === 'ma50') {
+    pine += `ma = ta.sma(close, 50)
+trigger = close < ma
+`;
+  } else if (trigger === 'range_breakout') {
+    pine += `three_red_then_green = close[4] < open[4] and close[3] < open[3] and close[2] < open[2] and close[1] > open[1]
+var float range_high = na
+if three_red_then_green
+    range_high := high[1]
+range_established = not na(range_high)
+breakout_condition = high > range_high + syminfo.mintick
+still_in_range = low >= low[2]
+trigger = range_established and breakout_condition and still_in_range
+if range_established and low < low[2]
+    range_high := na
+`;
+  }
+
+  pine += `
+plotshape(trigger, location=location.belowbar, style=shape.labelup, color=color.green, text="🚨")
+alertcondition(trigger, title="${trigger} Trigger", message='{"symbol":"{{ticker}}","setup":"${trigger}","price":{{close}},"volume":{{volume}},"timestamp":"{{time}}"}')`;
+
+  return pine.trim();
+};
+
+const jsonFor = (ticker, trigger) =>
+  JSON.stringify(
+    {
+      symbol: (ticker || 'TEST').toUpperCase(),
+      setup: trigger,
+      price: '{{close}}',
+      volume: '{{volume}}',
+      timestamp: '{{time}}',
+    },
+    null,
+    2
+  );
 
 export default function Home() {
   const [ticker, setTicker] = useState('');
   const [trigger, setTrigger] = useState('breakout');
-  const [pineCode, setPineCode] = useState('');
-  const [webhookJson, setWebhookJson] = useState('');
-  const [explanation, setExplanation] = useState('');
-  const [webhookLogs, setWebhookLogs] = useState([]);
-  const [webhookUrl, setWebhookUrl] = useState('');
+  const [explanation, setExplanation] = useState(explanationFor('breakout'));
+  const [pineCode, setPineCode] = useState(pineFor('breakout'));
+  const [webhookJson, setWebhookJson] = useState(jsonFor('', 'breakout'));
 
   useEffect(() => {
-    const getExplanation = () => {
-      switch (trigger) {
-        case 'breakout':
-          return 'Detects if price breaks above the highest high over the last 20 candles. Useful for momentum breakout strategies.';
-        case 'retest':
-          return 'Looks for a bullish retest: candle closes above resistance, then price returns and bounces off that level.';
-        case 'hhhl':
-          return 'Tracks higher-high/higher-low structure over 5 candles. Helps identify sustained uptrends.';
-        case 'ma10':
-          return 'Triggers when the price breaks below the 10-period moving average. Useful for detecting short-term weakness.';
-        case 'ma50':
-          return 'Triggers when the price breaks below the 50-period moving average. Highlights longer-term trend shifts.';
-        case 'range_breakout':
-          return 'Detects bottom formation reversals: after a falling trend, triggers when price breaks above the previous candle\'s high following a green reversal candle. Perfect for catching early reversals.';
-        default:
-          return '';
-      }
-    };
-    setExplanation(getExplanation());
-    
-    // Set webhook URL based on current domain
-    if (typeof window !== 'undefined') {
-      setWebhookUrl(`${window.location.origin}/api/webhook`);
-    }
+    setExplanation(explanationFor(trigger));
   }, [trigger]);
 
-  // Fetch webhook logs
-  useEffect(() => {
-    const fetchLogs = async () => {
-      try {
-        const res = await fetch('/api/webhook-messages');
-        const data = await res.json();
-        setWebhookLogs(data);
-      } catch (error) {
-        console.error('Failed to fetch webhook logs:', error);
-      }
-    };
-
-    fetchLogs();
-    const interval = setInterval(fetchLogs, 3000); // Poll every 3 seconds
-    return () => clearInterval(interval);
-  }, []);
-
-  const testWebhook = async () => {
-    try {
-      const testPayload = {
-        userId: "anton123",
-        symbol: ticker.toUpperCase() || "TEST",
-        setup: trigger,
-        price: 150.25,
-        volume: 1000000,
-        timestamp: new Date().toISOString()
-      };
-
-      const response = await fetch('/api/webhook', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(testPayload)
-      });
-
-      if (response.ok) {
-        alert('✅ Test webhook sent successfully!');
-      } else {
-        alert('❌ Test webhook failed');
-      }
-    } catch (error) {
-      alert('❌ Error sending test webhook');
-      console.error(error);
-    }
-  };
-    let pine = `//@version=5\nindicator("Trade Watch: ${trigger} Trigger", overlay=true)\n`;
-
-    if (trigger === 'breakout') {
-      pine += `resistance = ta.highest(high, 20)\ntrigger = close > resistance\n`;
-    } else if (trigger === 'retest') {
-      pine += `resistance = ta.highest(high, 20)\nbroken = close[1] > resistance[1]\nretest = close < resistance and close > open\ntrigger = broken and retest\n`;
-    } else if (trigger === 'hhhl') {
-      pine += `hh = high > high[1] and high[1] > high[2]\nhl = low > low[1] and low[1] > low[2]\ntrigger = hh and hl\n`;
-    } else if (trigger === 'ma10') {
-      pine += `ma = ta.sma(close, 10)\ntrigger = close < ma\n`;
-    } else if (trigger === 'ma50') {
-      pine += `ma = ta.sma(close, 50)\ntrigger = close < ma\n`;
-    } else if (trigger === 'range_breakout') {
-      pine += `// Step 1: Identify when we have 3 consecutive red candles followed by a green one
-three_red_then_green = close[4] < open[4] and close[3] < open[3] and close[2] < open[2] and close[1] > open[1]
-
-// Step 2: When this pattern occurs, establish the range high (the high of that first green candle)
-var float range_high = na
-if three_red_then_green
-    range_high := high[1]
-
-// Step 3: After establishing range, trigger when ANY candle breaks above that range high
-// AND doesn't go below the low of the last red candle (maintaining the range)
-range_established = not na(range_high)
-breakout_condition = high > range_high + syminfo.mintick
-still_in_range = low >= low[2]  // Hasn't broken below the range low
-
-// Trigger condition
-trigger = range_established and breakout_condition and still_in_range
-
-// Reset range if we break below (failed breakout)
-if range_established and low < low[2]
-    range_high := na\n`;
-    }
-
-    pine += `\nplotshape(trigger, location=location.belowbar, style=shape.labelup, color=color.green, text="🚨")\nalertcondition(trigger, title="${trigger} Trigger", message='{"userId":"anton123","symbol":"{{ticker}}","setup":"${trigger}","price":{{close}},"volume":{{volume}},"timestamp":"{{time"}}')`;
-
-    const json = {
-      userId: "anton123",
-      symbol: ticker.toUpperCase(),
-      setup: trigger,
-      price: "{{close}}",
-      volume: "{{volume}}",
-      timestamp: "{{time}}"
-    };
-
-    setPineCode(pine.trim());
-    setWebhookJson(JSON.stringify(json, null, 2));
+  const generate = () => {
+    setPineCode(pineFor(trigger));
+    setWebhookJson(jsonFor(ticker, trigger));
   };
 
   return (
     <>
       <Head>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
+          rel="stylesheet"
+        />
         <style>{`
           body {
             margin: 0;
@@ -153,18 +122,20 @@ if range_established and low < low[2]
       </Head>
 
       <div style={{ padding: '2rem', maxWidth: '900px', margin: '0 auto' }}>
-        <h1 style={{ fontSize: '32px', fontWeight: 600, marginBottom: '1rem' }}>📈 Plan Trader — Trade Watch Generator</h1>
+        <h1 style={{ fontSize: '32px', fontWeight: 600, marginBottom: '1rem' }}>
+          📈 Plan Trader — Trade Watch Generator
+        </h1>
 
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
           <input
             value={ticker}
-            onChange={e => setTicker(e.target.value)}
+            onChange={(e) => setTicker(e.target.value)}
             placeholder="Ticker (e.g. AAPL)"
             style={{ padding: '10px', fontSize: '18px', flex: '1 1 200px' }}
           />
           <select
             value={trigger}
-            onChange={e => setTrigger(e.target.value)}
+            onChange={(e) => setTrigger(e.target.value)}
             style={{
               padding: '10px 14px',
               fontSize: '18px',
@@ -172,13 +143,14 @@ if range_established and low < low[2]
               border: '1px solid #ccc',
               appearance: 'none',
               backgroundColor: '#fff',
-              backgroundImage: 'url("data:image/svg+xml;utf8,<svg fill=\'%23000\' height=\'24\' viewBox=\'0 0 24 24\' width=\'24\' xmlns=\'http://www.w3.org/2000/svg\'><path d=\'M7 10l5 5 5-5z\'/></svg>")',
+              backgroundImage:
+                "url(\"data:image/svg+xml;utf8,<svg fill='%23000' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>\")",
               backgroundRepeat: 'no-repeat',
               backgroundPositionX: 'calc(100% - 10px)',
               backgroundPositionY: 'center',
               backgroundSize: '16px',
               flex: '1 1 200px',
-              minWidth: '220px'
+              minWidth: '220px',
             }}
           >
             <option value="breakout">Breakout</option>
@@ -190,14 +162,34 @@ if range_established and low < low[2]
           </select>
           <button
             onClick={generate}
-            style={{ padding: '10px 20px', fontSize: '18px', cursor: 'pointer', background: '#111', color: '#fff', border: 'none' }}
+            style={{
+              padding: '10px 20px',
+              fontSize: '18px',
+              cursor: 'pointer',
+              background: '#111',
+              color: '#fff',
+              border: 'none',
+            }}
           >
             🚀 Generate
           </button>
         </div>
 
-        <div style={{ marginBottom: '2rem', fontSize: '16px', background: '#eef2f5', padding: '1rem', borderRadius: '6px' }}>
+        <div
+          style={{
+            marginBottom: '1.5rem',
+            fontSize: '16px',
+            background: '#eef2f5',
+            padding: '1rem',
+            borderRadius: '6px',
+          }}
+        >
           <strong>ℹ️ Strategy:</strong> {explanation}
+        </div>
+
+        {/* Visuals */}
+        <div style={{ marginTop: '24px', marginBottom: '24px' }}>
+          <StrategyVisuals selected={trigger} />
         </div>
 
         {/* Pine Script Section */}
@@ -207,8 +199,10 @@ if range_established and low < low[2]
             onClick={() => {
               navigator.clipboard.writeText(pineCode);
               const el = document.getElementById('pine-copied');
-              el.style.opacity = 1;
-              setTimeout(() => (el.style.opacity = 0), 1500);
+              if (el) {
+                el.style.opacity = 1;
+                setTimeout(() => (el.style.opacity = 0), 1500);
+              }
             }}
             style={{
               position: 'absolute',
@@ -220,12 +214,22 @@ if range_established and low < low[2]
               color: '#fff',
               border: 'none',
               cursor: 'pointer',
-              borderRadius: '4px'
+              borderRadius: '4px',
             }}
           >
             Copy
           </button>
-          <span id="pine-copied" style={{ position: 'absolute', top: '10px', right: '80px', opacity: 0, transition: 'opacity 0.3s ease', fontSize: '14px' }}>
+          <span
+            id="pine-copied"
+            style={{
+              position: 'absolute',
+              top: '10px',
+              right: '80px',
+              opacity: 0,
+              transition: 'opacity 0.3s ease',
+              fontSize: '14px',
+            }}
+          >
             ✅ Copied!
           </span>
           <pre style={{ background: '#f0f0f0', padding: '1rem', overflowX: 'auto', fontSize: '15px' }}>
@@ -240,8 +244,10 @@ if range_established and low < low[2]
             onClick={() => {
               navigator.clipboard.writeText(webhookJson);
               const el = document.getElementById('json-copied');
-              el.style.opacity = 1;
-              setTimeout(() => (el.style.opacity = 0), 1500);
+              if (el) {
+                el.style.opacity = 1;
+                setTimeout(() => (el.style.opacity = 0), 1500);
+              }
             }}
             style={{
               position: 'absolute',
@@ -252,111 +258,29 @@ if range_established and low < low[2]
               background: '#111',
               color: '#fff',
               border: 'none',
+              borderRadius: '4px',
               cursor: 'pointer',
-              borderRadius: '4px'
             }}
           >
             Copy
           </button>
-          <span id="json-copied" style={{ position: 'absolute', top: '10px', right: '80px', opacity: 0, transition: 'opacity 0.3s ease', fontSize: '14px' }}>
+          <span
+            id="json-copied"
+            style={{
+              position: 'absolute',
+              top: '10px',
+              right: '80px',
+              opacity: 0,
+              transition: 'opacity 0.3s ease',
+              fontSize: '14px',
+            }}
+          >
             ✅ Copied!
           </span>
           <pre style={{ background: '#f9f9f9', padding: '1rem', overflowX: 'auto', fontSize: '15px' }}>
             <code>{webhookJson}</code>
           </pre>
         </div>
-
-        {/* Webhook Configuration Section */}
-        <h2 style={{ fontSize: '24px', marginTop: '2rem' }}>🔗 Webhook Configuration</h2>
-        <div style={{ background: '#f9f9f9', padding: '1rem', borderRadius: '6px', marginBottom: '1rem' }}>
-          <p style={{ margin: '0 0 1rem 0', fontSize: '16px' }}>
-            <strong>Your Webhook URL:</strong>
-          </p>
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <code style={{ 
-              background: '#e8e8e8', 
-              padding: '8px 12px', 
-              borderRadius: '4px', 
-              flex: 1,
-              fontSize: '14px',
-              wordBreak: 'break-all'
-            }}>
-              {webhookUrl}
-            </code>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(webhookUrl);
-                alert('✅ Webhook URL copied!');
-              }}
-              style={{
-                padding: '8px 16px',
-                fontSize: '14px',
-                background: '#111',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer'
-              }}
-            >
-              Copy URL
-            </button>
-            <button
-              onClick={testWebhook}
-              style={{
-                padding: '8px 16px',
-                fontSize: '14px',
-                background: '#28a745',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer'
-              }}
-            >
-              Test Webhook
-            </button>
-          </div>
-          <p style={{ margin: '1rem 0 0 0', fontSize: '14px', color: '#666' }}>
-            Copy this URL and paste it into your TradingView alert's webhook URL field.
-          </p>
-        </div>
-
-        {/* Webhook Logs Section */}
-        <h2 style={{ fontSize: '24px' }}>📋 Webhook Logs</h2>
-        <div style={{ 
-          background: '#f4f4f4', 
-          padding: '1rem', 
-          borderRadius: '6px', 
-          maxHeight: '400px', 
-          overflowY: 'auto',
-          marginBottom: '2rem'
-        }}>
-          {webhookLogs.length === 0 ? (
-            <p style={{ margin: 0, color: '#666' }}>No webhook messages received yet...</p>
-          ) : (
-            <div>
-              <p style={{ margin: '0 0 1rem 0', fontSize: '14px', color: '#666' }}>
-                Latest {webhookLogs.length} webhook{webhookLogs.length !== 1 ? 's' : ''} received:
-              </p>
-              {webhookLogs.map((log, index) => (
-                <div key={index} style={{ 
-                  background: '#fff', 
-                  padding: '1rem', 
-                  marginBottom: '0.5rem', 
-                  border: '1px solid #ddd',
-                  borderRadius: '4px'
-                }}>
-                  <div style={{ fontSize: '12px', color: '#666', marginBottom: '0.5rem' }}>
-                    Received: {new Date(log.receivedAt).toLocaleString()}
-                  </div>
-                  <pre style={{ margin: 0, fontSize: '13px', whiteSpace: 'pre-wrap' }}>
-                    {JSON.stringify(log, null, 2)}
-                  </pre>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
       </div>
     </>
   );
