@@ -7,8 +7,6 @@ export default function StrategyVisuals({ selected }) {
     if (selected) setSelectedStrategy(selected);
   }, [selected]);
 
-  // ...rest exactly as you wrote it
-}
 
   const strategies = {
     breakout: {
