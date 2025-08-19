@@ -106,7 +106,11 @@ alertcondition(trigger, title="${trigger} Trigger", message='{"symbol":"{{ticker
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: '#2C2C2C' }}>{title}</h2>
+        {title ? (
+          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: '#2C2C2C' }}>{title}</h2>
+        ) : (
+          <div />
+        )}
         <div style={{ marginLeft: 'auto' }}>{right}</div>
       </div>
       {children}
@@ -117,40 +121,23 @@ alertcondition(trigger, title="${trigger} Trigger", message='{"symbol":"{{ticker
     <>
       <Head>
         <title>TAKE THE MARKETS WITH YOU</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
           rel="stylesheet"
         />
-        <style>{`
-          :root {
-            --bg: #FAF7F2; /* warm/earthy off-white */
-            --ink: #1C1B1A;
-            --muted: #6B655E;
-            --accent: #0E7C66; /* deep green */
-          }
-          * { box-sizing: border-box; }
-          html, body { height: 100%; }
-          body {
-            margin: 0;
-            font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-            background: var(--bg);
-            color: var(--ink);
-          }
-          a { color: var(--accent); text-decoration: none; }
-          a:hover { text-decoration: underline; }
-          code { font-family: "Courier New", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-        `}</style>
       </Head>
 
-      <div style={{ padding: '28px 20px', maxWidth: 1100, margin: '0 auto' }}>
+      <div style={{ padding: '28px 20px', maxWidth: 1100, margin: '0 auto', background: '#FAF7F2', minHeight: '100vh' }}>
         {/* Header */}
         <header style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 12 }}>
-          <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: 0.2, margin: 0 }}>
+          <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: 0.2, margin: 0, color: '#1C1B1A' }}>
             TAKE THE MARKETS WITH YOU
           </h1>
-          <span style={{ color: 'var(--muted)', fontSize: 14 }}>
-            a tool by <a href="https://x.com/philoinvestor" target="_blank" rel="noreferrer">@philoinvestor</a>
+          <span style={{ color: '#6B655E', fontSize: 14 }}>
+            a tool by{' '}
+            <a href="https://x.com/philoinvestor" target="_blank" rel="noreferrer" style={{ color: '#0E7C66' }}>
+              @philoinvestor
+            </a>
           </span>
         </header>
 
@@ -175,6 +162,7 @@ alertcondition(trigger, title="${trigger} Trigger", message='{"symbol":"{{ticker
               border: '1px solid #D8D2C9',
               background: '#FFF',
               outline: 'none',
+              color: '#1C1B1A',
             }}
           />
           <select
@@ -192,6 +180,7 @@ alertcondition(trigger, title="${trigger} Trigger", message='{"symbol":"{{ticker
               backgroundRepeat: 'no-repeat',
               backgroundPositionX: 'calc(100% - 12px)',
               backgroundPositionY: 'center',
+              color: '#1C1B1A',
             }}
           >
             <option value="breakout">Breakout</option>
@@ -206,7 +195,7 @@ alertcondition(trigger, title="${trigger} Trigger", message='{"symbol":"{{ticker
               padding: '12px 24px',
               fontSize: 20,
               cursor: 'pointer',
-              background: 'var(--accent)',
+              background: '#0E7C66',
               color: '#fff',
               border: 'none',
               borderRadius: 12,
@@ -268,7 +257,7 @@ alertcondition(trigger, title="${trigger} Trigger", message='{"symbol":"{{ticker
               opacity: 0,
               transition: 'opacity .2s ease',
               fontSize: 13,
-              color: 'var(--accent)',
+              color: '#0E7C66',
               fontWeight: 600,
             }}
           >
@@ -281,8 +270,8 @@ alertcondition(trigger, title="${trigger} Trigger", message='{"symbol":"{{ticker
               border: '1px solid #E6E1DA',
               borderRadius: 12,
               padding: 12,
-              height: 260, // fixed height
-              overflow: 'auto', // scroll inside
+              height: 260,
+              overflow: 'auto',
             }}
           >
             <code style={{ fontSize: 14, whiteSpace: 'pre' }}>
@@ -326,7 +315,7 @@ alertcondition(trigger, title="${trigger} Trigger", message='{"symbol":"{{ticker
               opacity: 0,
               transition: 'opacity .2s ease',
               fontSize: 13,
-              color: 'var(--accent)',
+              color: '#0E7C66',
               fontWeight: 600,
             }}
           >
@@ -339,8 +328,8 @@ alertcondition(trigger, title="${trigger} Trigger", message='{"symbol":"{{ticker
               border: '1px solid #E6E1DA',
               borderRadius: 12,
               padding: 12,
-              height: 260, // fixed height
-              overflow: 'auto', // scroll inside
+              height: 260,
+              overflow: 'auto',
             }}
           >
             <code style={{ fontSize: 14, whiteSpace: 'pre' }}>
@@ -361,7 +350,7 @@ alertcondition(trigger, title="${trigger} Trigger", message='{"symbol":"{{ticker
               fontSize: 18,
               fontWeight: 700,
               color: '#fff',
-              background: 'var(--accent)',
+              background: '#0E7C66',
               borderRadius: 12,
               boxShadow: '0 8px 18px rgba(14,124,102,0.25)',
             }}
@@ -373,3 +362,6 @@ alertcondition(trigger, title="${trigger} Trigger", message='{"symbol":"{{ticker
     </>
   );
 }
+
+// If you still ever see prerender issues, uncomment this to force SSR:
+// export async function getServerSideProps() { return { props: {} }; }
