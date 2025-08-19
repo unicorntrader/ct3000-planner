@@ -2,184 +2,204 @@ import React, { useState, useEffect } from 'react';
 
 export default function StrategyVisuals({ selected }) {
   const [selectedStrategy, setSelectedStrategy] = useState(selected || 'breakout');
+  useEffect(() => { if (selected) setSelectedStrategy(selected); }, [selected]);
 
-  useEffect(() => {
-    if (selected) setSelectedStrategy(selected);
-  }, [selected]);
+  const C = {
+    bg: '#fffdf8',
+    grid: '#ece7de',
+    text: '#2f3a44',
+    muted: '#5f6b76',
+    green: '#2f855a',
+    red: '#c05621',
+    blue: '#2b6cb0',
+    gold: '#b7791f'
+  };
+
+  const Grid = ({ w=640, h=300 }) => (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
+      <defs>
+        <pattern id="g" width="24" height="24" patternUnits="userSpaceOnUse">
+          <path d="M24 0H0V24" fill="none" stroke={C.grid} strokeWidth="1"/>
+        </pattern>
+      </defs>
+      <rect width={w} height={h} fill={C.bg}/>
+      <rect width={w} height={h} fill="url(#g)"/>
+    </svg>
+  );
+
+  const Pill = ({ x, y, text, fill = C.green }) => {
+    const padX = 8, padY = 5;
+    const fontSize = 14;
+    const tw = text.length * (fontSize * 0.62);
+    const rw = tw + padX * 2, rh = fontSize + padY * 2;
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <rect x="0" y="0" width={rw} height={rh} rx="10" ry="10" fill={fill} opacity="0.9"/>
+        <text x={padX} y={padY + fontSize * 0.8} fill="#fff" fontSize={fontSize} fontWeight="700">{text}</text>
+      </g>
+    );
+  };
+
+  const visuals = {
+    breakout: (
+      <svg width="640" height="300" viewBox="0 0 640 300">
+        <defs>
+          <pattern id="g" width="24" height="24" patternUnits="userSpaceOnUse">
+            <path d="M24 0H0V24" fill="none" stroke={C.grid} strokeWidth="1"/>
+          </pattern>
+        </defs>
+        <rect width="640" height="300" fill={C.bg}/>
+        <rect width="640" height="300" fill="url(#g)"/>
+        <polyline points="60,210 110,200 160,215 210,205 260,212 310,195 360,206 410,199" fill="none" stroke={C.muted} strokeWidth="3"/>
+        <line x1="60" y1="180" x2="480" y2="180" stroke={C.red} strokeWidth="3" strokeDasharray="8,6"/>
+        <text x="490" y="184" fill={C.red} fontSize="14" fontWeight="700">Prior 20‑bar High</text>
+        <polyline points="410,199 440,172 470,162 500,167 530,150 560,155" fill="none" stroke={C.green} strokeWidth="4"/>
+        <circle cx="440" cy="172" r="6" fill={C.green}/>
+        <g transform="translate(448,144)"><rect width="110" height="28" rx="8" fill={C.green}/><text x="10" y="20" fill="#fff" fontSize="14" fontWeight="700">Breakout</text></g>
+      </svg>
+    ),
+
+    orh: (
+      <svg width="640" height="300" viewBox="0 0 640 300">
+        <defs>
+          <pattern id="g" width="24" height="24" patternUnits="userSpaceOnUse">
+            <path d="M24 0H0V24" fill="none" stroke={C.grid} strokeWidth="1"/>
+          </pattern>
+        </defs>
+        <rect width="640" height="300" fill={C.bg}/>
+        <rect width="640" height="300" fill="url(#g)"/>
+
+        <rect x="80" y="80" width="180" height="140" fill="none" stroke={C.gold} strokeWidth="3"/>
+        <text x="90" y="72" fill={C.gold} fontSize="14" fontWeight="700">Opening Window</text>
+
+        <polyline points="80,200 110,170 140,190 170,160 200,175 230,150" fill="none" stroke={C.muted} strokeWidth="3"/>
+        <line x1="80" y1="140" x2="260" y2="140" stroke={C.blue} strokeWidth="3"/>
+        <text x="270" y="144" fill={C.blue} fontSize="14" fontWeight="700">OR High</text>
+
+        <polyline points="260,150 300,160 340,158 380,162 420,150 460,138 500,142 540,130" fill="none" stroke={C.green} strokeWidth="4"/>
+        <circle cx="460" cy="138" r="7" fill={C.green}/>
+        <g transform="translate(470,112)"><rect width="120" height="28" rx="8" fill={C.green}/><text x="10" y="20" fill="#fff" fontSize="14" fontWeight="700">ORH Break</text></g>
+      </svg>
+    ),
+
+    orl: (
+      <svg width="640" height="300" viewBox="0 0 640 300">
+        <defs>
+          <pattern id="g" width="24" height="24" patternUnits="userSpaceOnUse">
+            <path d="M24 0H0V24" fill="none" stroke={C.grid} strokeWidth="1"/>
+          </pattern>
+        </defs>
+        <rect width="640" height="300" fill={C.bg}/>
+        <rect width="640" height="300" fill="url(#g)"/>
+
+        <rect x="80" y="80" width="180" height="140" fill="none" stroke={C.gold} strokeWidth="3"/>
+        <text x="90" y="72" fill={C.gold} fontSize="14" fontWeight="700">Opening Window</text>
+
+        <polyline points="80,120 110,145 140,130 170,155 200,140 230,165" fill="none" stroke={C.muted} strokeWidth="3"/>
+        <line x1="80" y1="196" x2="260" y2="196" stroke={C.red} strokeWidth="3"/>
+        <text x="270" y="200" fill={C.red} fontSize="14" fontWeight="700">OR Low</text>
+
+        <polyline points="260,160 300,175 340,190 380,205 420,198 460,210 500,220 540,235" fill="none" stroke={C.red} strokeWidth="4"/>
+        <circle cx="460" cy="210" r="7" fill={C.red}/>
+        <g transform="translate(470,222)"><rect width="116" height="28" rx="8" fill={C.red}/><text x="10" y="20" fill="#fff" fontSize="14" fontWeight="700">ORL Break</text></g>
+      </svg>
+    ),
+
+    range_breakout: (
+      <svg width="640" height="300" viewBox="0 0 640 300">
+        <defs>
+          <pattern id="g" width="24" height="24" patternUnits="userSpaceOnUse">
+            <path d="M24 0H0V24" fill="none" stroke={C.grid} strokeWidth="1"/>
+          </pattern>
+        </defs>
+        <rect width="640" height="300" fill={C.bg}/>
+        <rect width="640" height="300" fill="url(#g)"/>
+
+        <rect x="140" y="140" width="26" height="64" fill={C.red} opacity="0.9"/><rect x="176" y="152" width="26" height="52" fill={C.red} opacity="0.9"/><rect x="212" y="158" width="26" height="56" fill={C.red} opacity="0.9"/>
+        <rect x="248" y="164" width="26" height="46" fill={C.green} opacity="0.9"/>
+
+        <line x1="248" y1="164" x2="520" y2="164" stroke={C.blue} strokeWidth="3" strokeDasharray="8,6"/>
+        <text x="528" y="168" fill={C.blue} fontSize="14" fontWeight="700">Reversal High</text>
+
+        <polyline points="274,180 306,170 338,162 370,158 402,154 434,150" fill="none" stroke={C.green} strokeWidth="4"/>
+        <circle cx="338" cy="162" r="6" fill={C.green}/>
+        <g transform="translate(346,134)"><rect width="100" height="28" rx="8" fill={C.green}/><text x="10" y="20" fill="#fff" fontSize="14" fontWeight="700">Breakout</text></g>
+      </svg>
+    ),
+
+    ma10: (
+      <svg width="640" height="300" viewBox="0 0 640 300">
+        <defs>
+          <pattern id="g" width="24" height="24" patternUnits="userSpaceOnUse">
+            <path d="M24 0H0V24" fill="none" stroke={C.grid} strokeWidth="1"/>
+          </pattern>
+        </defs>
+        <rect width="640" height="300" fill={C.bg}/>
+        <rect width="640" height="300" fill="url(#g)"/>
+
+        <polyline points="60,170 110,160 160,150 210,145 260,140 310,145 360,150 410,158" fill="none" stroke={C.green} strokeWidth="3"/>
+        <polyline points="60,184 110,180 160,176 210,172 260,168 310,170 360,174 410,178 460,184" fill="none" stroke={C.blue} strokeWidth="4"/>
+        <polyline points="410,158 440,176 470,188 500,198 530,206" fill="none" stroke={C.red} strokeWidth="4"/>
+        <circle cx="440" cy="176" r="7" fill={C.red}/>
+        <g transform="translate(450,148)"><rect width="140" height="28" rx="8" fill={C.red}/><text x="10" y="20" fill="#fff" fontSize="14" fontWeight="700">Break below MA10</text></g>
+      </svg>
+    ),
+
+    ma50: (
+      <svg width="640" height="300" viewBox="0 0 640 300">
+        <defs>
+          <pattern id="g" width="24" height="24" patternUnits="userSpaceOnUse">
+            <path d="M24 0H0V24" fill="none" stroke={C.grid} strokeWidth="1"/>
+          </pattern>
+        </defs>
+        <rect width="640" height="300" fill={C.bg}/>
+        <rect width="640" height="300" fill="url(#g)"/>
+
+        <polyline points="60,200 110,190 160,182 210,176 260,170 310,166 360,162 410,160" fill="none" stroke={C.green} strokeWidth="3"/>
+        <polyline points="60,214 120,212 180,210 240,208 300,206 360,204 420,202 480,201" fill="none" stroke="#7b61ff" strokeWidth="5"/>
+        <polyline points="420,160 450,178 480,196 510,212 540,226" fill="none" stroke={C.red} strokeWidth="5"/>
+        <circle cx="480" cy="196" r="8" fill={C.red}/>
+        <g transform="translate(490,170)"><rect width="160" height="28" rx="8" fill={C.red}/><text x="10" y="20" fill="#fff" fontSize="14" fontWeight="700">Major MA50 Breakdown</text></g>
+      </svg>
+    ),
+  };
 
   const strategies = {
     breakout: {
-      title: 'Breakout (Prior 20‑Bar High)',
-      description:
-        'Looks for a clean breakout where the close crosses above the prior 20‑bar high (excluding the current bar).',
-      keyPoints: [
-        'Close-based signal to reduce noise',
-        'Uses prior 20‑bar high (no current-bar lookahead)',
-        'Great for momentum continuation',
-        'Works on any timeframe',
-      ],
-      visual: (
-        <svg width="440" height="220" viewBox="0 0 440 220">
-          <defs>
-            <pattern id="gridB" width="20" height="20" patternUnits="userSpaceOnUse">
-              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#1f2638" strokeWidth="1"/>
-            </pattern>
-          </defs>
-          <rect width="440" height="220" fill="url(#gridB)" />
-          <polyline points="30,160 60,155 90,162 120,150 150,158 180,145 210,152" fill="none" stroke="#8aa0c8" strokeWidth="2"/>
-          <line x1="30" y1="135" x2="240" y2="135" stroke="#ef7777" strokeWidth="2" strokeDasharray="6,6"/>
-          <text x="246" y="138" fontSize="11" fill="#ef7777">Prior 20‑Bar High</text>
-          <polyline points="210,152 240,130 270,118 300,122 330,108 360,112" fill="none" stroke="#7af0b6" strokeWidth="3"/>
-          <polygon points="240,130 234,136 244,136" fill="#7af0b6"/>
-          <text x="246" y="120" fontSize="12" fill="#7af0b6" fontWeight="bold">Breakout</text>
-        </svg>
-      )
+      title: 'Breakout (20‑bar High)',
+      description: 'Close crosses above the prior 20‑bar high. Cleaner, close‑based breakout.',
+      keyPoints: ['Clear level', 'Momentum confirmation', 'Works on any timeframe'],
+      visual: visuals.breakout,
     },
-
     orh: {
       title: 'Opening Range High (ORH)',
-      description:
-        'Defines the opening range from the first N bars of the session. After the window locks, fires once intrabar on a break above the OR High.',
-      keyPoints: [
-        'User‑tunable opening window (bars)',
-        'Locks after window; no repaint',
-        'One‑shot intrabar trigger',
-        'Great for morning momentum',
-      ],
-      visual: (
-        <svg width="440" height="220" viewBox="0 0 440 220">
-          <defs>
-            <pattern id="gridORH" width="20" height="20" patternUnits="userSpaceOnUse">
-              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#1f2638" strokeWidth="1"/>
-            </pattern>
-          </defs>
-          <rect width="440" height="220" fill="url(#gridORH)" />
-          <rect x="40" y="150" width="120" height="40" fill="rgba(122,240,182,0.06)" stroke="#6aa3ff" strokeDasharray="6,6"/>
-          <text x="46" y="146" fontSize="11" fill="#6aa3ff">Opening Window</text>
-          <line x1="40" y1="150" x2="160" y2="150" stroke="#6aa3ff" strokeWidth="2"/>
-          <polyline points="40,170 60,160 80,175 100,165 120,172 140,160 160,158 180,155 200,150" fill="none" stroke="#8aa0c8" strokeWidth="2"/>
-          <line x1="40" y1="158" x2="160" y2="158" stroke="#7af0b6" strokeWidth="3"/>
-          <text x="166" y="160" fontSize="11" fill="#7af0b6">Locked OR High</text>
-          <polyline points="200,150 230,142 260,135 290,128 320,122" fill="none" stroke="#7af0b6" strokeWidth="3"/>
-          <polygon points="230,142 224,148 234,148" fill="#7af0b6"/>
-          <text x="236" y="138" fontSize="12" fill="#7af0b6" fontWeight="bold">Break Above ORH</text>
-        </svg>
-      )
+      description: 'Locks the opening window, then fires intrabar on a break of the OR High (one‑shot).',
+      keyPoints: ['Respects session context', 'One‑shot once armed', 'Great for trend days'],
+      visual: visuals.orh,
     },
-
     orl: {
       title: 'Opening Range Low (ORL)',
-      description:
-        'Defines the opening range from the first N bars of the session. After the window locks, fires once intrabar on a break below the OR Low.',
-      keyPoints: [
-        'User‑tunable opening window (bars)',
-        'Locks after window; no repaint',
-        'One‑shot intrabar trigger',
-        'Great for morning fades',
-      ],
-      visual: (
-        <svg width="440" height="220" viewBox="0 0 440 220">
-          <defs>
-            <pattern id="gridORL" width="20" height="20" patternUnits="userSpaceOnUse">
-              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#1f2638" strokeWidth="1"/>
-            </pattern>
-          </defs>
-          <rect width="440" height="220" fill="url(#gridORL)" />
-          <rect x="40" y="120" width="120" height="60" fill="rgba(239,119,119,0.06)" stroke="#6aa3ff" strokeDasharray="6,6"/>
-          <text x="46" y="116" fontSize="11" fill="#6aa3ff">Opening Window</text>
-          <polyline points="40,130 60,138 80,125 100,140 120,128 140,145 160,148 180,152 200,158" fill="none" stroke="#8aa0c8" strokeWidth="2"/>
-          <line x1="40" y1="148" x2="160" y2="148" stroke="#ef7777" strokeWidth="3"/>
-          <text x="166" y="150" fontSize="11" fill="#ef7777">Locked OR Low</text>
-          <polyline points="200,158 230,166 260,172 290,180 320,186" fill="none" stroke="#ef7777" strokeWidth="3"/>
-          <polygon points="230,166 224,160 234,160" fill="#ef7777"/>
-          <text x="236" y="170" fontSize="12" fill="#ef7777" fontWeight="bold">Break Below ORL</text>
-        </svg>
-      )
+      description: 'Locks the opening window, then fires intrabar on a break of the OR Low (one‑shot).',
+      keyPoints: ['Downside momentum', 'One‑shot once armed', 'Clean risk framing'],
+      visual: visuals.orl,
     },
-
     range_breakout: {
       title: 'Range Breakout (Bottom Reversal)',
-      description:
-        '3 consecutive red candles then a green reversal. Once armed, fires intrabar on break above the green high (one‑shot).',
-      keyPoints: [
-        'Early reversal capture',
-        'One‑shot once armed',
-        'Invalidates on range‑low break',
-        'Works across assets/timeframes',
-      ],
-      visual: (
-        <svg width="440" height="220" viewBox="0 0 440 220">
-          <defs>
-            <pattern id="gridRB" width="20" height="20" patternUnits="userSpaceOnUse">
-              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#1f2638" strokeWidth="1"/>
-            </pattern>
-          </defs>
-          <rect width="440" height="220" fill="url(#gridRB)" />
-          <rect x="110" y="130" width="18" height="40" fill="#ef7777"/>
-          <rect x="140" y="140" width="18" height="32" fill="#ef7777"/>
-          <rect x="170" y="148" width="18" height="36" fill="#ef7777"/>
-          <rect x="200" y="156" width="18" height="28" fill="#7af0b6"/>
-          <line x1="200" y1="156" x2="330" y2="156" stroke="#6aa3ff" strokeWidth="2" strokeDasharray="6,6"/>
-          <text x="336" y="160" fontSize="11" fill="#6aa3ff">Reversal High</text>
-          <polyline points="230,166 260,148 290,140 320,136" fill="none" stroke="#7af0b6" strokeWidth="3"/>
-          <polygon points="260,148 254,154 264,154" fill="#7af0b6"/>
-          <text x="266" y="142" fontSize="12" fill="#7af0b6" fontWeight="bold">Breakout</text>
-        </svg>
-      )
+      description: '3 red then a green reversal. Armed on the green; fires intrabar on a break above its high.',
+      keyPoints: ['Early reversal capture', 'Invalidates on range‑low break', 'One‑shot trigger'],
+      visual: visuals.range_breakout,
     },
-
     ma10: {
       title: 'MA10 Breakdown',
-      description:
-        'Flags short‑term weakness when price breaks below the 10‑period SMA.',
-      keyPoints: [
-        'Quick momentum read',
-        'Dynamic S/R around trend',
-        'Good risk management cue',
-        'Pairs with pullback playbooks',
-      ],
-      visual: (
-        <svg width="440" height="220" viewBox="0 0 440 220">
-          <defs>
-            <pattern id="grid10" width="20" height="20" patternUnits="userSpaceOnUse">
-              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#1f2638" strokeWidth="1"/>
-            </pattern>
-          </defs>
-          <rect width="440" height="220" fill="url(#grid10)" />
-          <polyline points="40,120 70,112 100,108 130,104 160,100 190,104 220,100" fill="none" stroke="#7af0b6" strokeWidth="2"/>
-          <polyline points="40,130 80,125 120,118 160,112 200,110 240,114 280,118" fill="none" stroke="#6aa3ff" strokeWidth="3"/>
-          <polyline points="220,100 250,120 280,136 310,146 340,152" fill="none" stroke="#ef7777" strokeWidth="3"/>
-          <circle cx="250" cy="120" r="6" fill="#ef7777"/>
-          <text x="256" y="116" fontSize="12" fill="#ef7777" fontWeight="bold">Breakdown</text>
-        </svg>
-      )
+      description: 'Break below the 10‑period SMA signals short‑term weakness.',
+      keyPoints: ['Quick momentum read', 'Good for pullback alerts', 'Pairs with trend filters'],
+      visual: visuals.ma10,
     },
-
     ma50: {
       title: 'MA50 Breakdown',
-      description:
-        'Signals a more significant shift when price breaks below the 50‑period SMA.',
-      keyPoints: [
-        'Higher‑timeframe warning',
-        'Often precedes deeper corrections',
-        'Watched by institutions',
-        'Useful regime filter',
-      ],
-      visual: (
-        <svg width="440" height="220" viewBox="0 0 440 220">
-          <defs>
-            <pattern id="grid50" width="20" height="20" patternUnits="userSpaceOnUse">
-              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#1f2638" strokeWidth="1"/>
-            </pattern>
-          </defs>
-          <rect width="440" height="220" fill="url(#grid50)" />
-          <polyline points="40,150 70,144 100,138 130,132 160,126 190,120 220,118" fill="none" stroke="#7af0b6" strokeWidth="2"/>
-          <polyline points="40,160 90,158 140,155 190,151 240,148 290,146 340,148" fill="none" stroke="#a78bfa" strokeWidth="4"/>
-          <polyline points="220,118 250,132 280,146 310,160 340,170" fill="none" stroke="#dc5656" strokeWidth="4"/>
-          <circle cx="280" cy="146" r="7" fill="#dc5656"/>
-          <text x="288" y="142" fontSize="12" fill="#dc5656" fontWeight="bold">Breakdown</text>
-        </svg>
-      )
+      description: 'Break below the 50‑period SMA flags a bigger trend shift.',
+      keyPoints: ['Higher‑timeframe signal', 'Often precedes deeper corrections', 'Widely watched level'],
+      visual: visuals.ma50,
     },
   };
 
@@ -187,13 +207,31 @@ export default function StrategyVisuals({ selected }) {
 
   return (
     <div>
-      <h2 style={{ margin: 0, fontSize: 18, color: 'var(--muted)' }}>{s.title}</h2>
-      <div style={{ marginTop: 12 }}>{s.visual}</div>
-      <div style={{ marginTop: 12, color: 'var(--muted)' }}>{s.description}</div>
-      <ul style={{ marginTop: 10, paddingLeft: 18 }}>
-        {s.keyPoints.map((p, i) => (
-          <li key={i} style={{ color: 'var(--muted)', lineHeight: 1.6 }}>{p}</li>
-        ))}
+      {!selected && (
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: 'block', fontSize: 14, color: C.muted, marginBottom: 6 }}>Select Strategy</label>
+          <select
+            value={selectedStrategy}
+            onChange={(e) => setSelectedStrategy(e.target.value)}
+            style={{ padding: '10px 12px', fontSize: 16, border: '1px solid #e6e2da', borderRadius: 10, width: '100%', background: '#fcfbf7' }}
+          >
+            {Object.entries(strategies).map(([key, v]) => (
+              <option key={key} value={key}>{v.title}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      <h2 style={{ fontSize: 20, fontWeight: 800, color: C.text, marginBottom: 10 }}>{s.title}</h2>
+
+      <div style={{ border: `1px solid ${C.grid}`, borderRadius: 12, overflow: 'hidden', background: C.bg, marginBottom: 12 }}>
+        {s.visual}
+      </div>
+
+      <p style={{ color: C.muted, fontSize: 16, lineHeight: 1.5, margin: '6px 0 10px' }}>{s.description}</p>
+
+      <ul style={{ color: C.text, fontSize: 16, margin: 0, paddingLeft: 18 }}>
+        {s.keyPoints.map((pt, i) => <li key={i} style={{ marginBottom: 6 }}>{pt}</li>)}
       </ul>
     </div>
   );
