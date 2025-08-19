@@ -8,8 +8,6 @@ export default function Home() {
   const [pineCode, setPineCode] = useState('');
   const [webhookJson, setWebhookJson] = useState('');
   const [explanation, setExplanation] = useState('');
-  const [webhookLogs, setWebhookLogs] = useState([]);
-  const [webhookUrl, setWebhookUrl] = useState('');
 
   useEffect(() => {
     const getExplanation = () => {
@@ -31,42 +29,7 @@ export default function Home() {
       }
     };
     setExplanation(getExplanation());
-    if (typeof window !== 'undefined') setWebhookUrl(`${window.location.origin}/api/webhook`);
   }, [trigger]);
-
-  useEffect(() => {
-    const fetchLogs = async () => {
-      try {
-        const res = await fetch('/api/webhook-messages');
-        if (!res.ok) return;
-        const data = await res.json();
-        setWebhookLogs(Array.isArray(data) ? data : []);
-      } catch {}
-    };
-    fetchLogs();
-    const interval = setInterval(fetchLogs, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const testWebhook = async () => {
-    try {
-      const testPayload = {
-        symbol: ticker?.toUpperCase() || 'TEST',
-        setup: trigger,
-        price: 150.25,
-        volume: 1000000,
-        timestamp: new Date().toISOString(),
-      };
-      const response = await fetch('/api/webhook', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(testPayload),
-      });
-      alert(response.ok ? '✅ Test webhook sent successfully!' : '❌ Test webhook failed');
-    } catch {
-      alert('❌ Error sending test webhook');
-    }
-  };
 
   const generate = () => {
     let pine = `//@version=5
@@ -198,42 +161,66 @@ alertcondition(trigger, title="${trigger} Trigger", message='{"symbol":"{{ticker
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
         <style>{`
           :root{
-            --bg:#0b0d12;
-            --panel:#121621;
-            --card:#161b2a;
-            --text:#e9eefb;
-            --muted:#a9b3c9;
-            --accent:#6aa3ff;
-            --accent2:#7af0b6;
-            --stroke:#242a3b;
+            --bg:#f6f3ee;           /* sand */
+            --panel:#ffffff;        /* paper */
+            --card:#fffdf8;         /* ivory */
+            --text:#1f2933;         /* ink */
+            --muted:#5f6b76;        /* slate */
+            --accent:#2f855a;       /* forest */
+            --accent2:#c05621;      /* terracotta */
+            --stroke:#e6e2da;       /* light border */
           }
-          body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:radial-gradient(1200px 700px at 80% -10%,rgba(106,163,255,.15),transparent),var(--bg);color:var(--text);}
+          body{
+            margin:0;
+            font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+            background:
+              radial-gradient(900px 500px at 70% -10%, rgba(47,133,90,.12), transparent),
+              var(--bg);
+            color:var(--text);
+          }
           .container{max-width:1100px;margin:0 auto;padding:32px;}
           .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
-          .title{font-size:28px;font-weight:700;letter-spacing:.2px}
+          .title{font-size:28px;font-weight:800;letter-spacing:.3px}
           .sub{color:var(--muted);font-size:14px}
+          .brand a{color:var(--accent2);text-decoration:none;font-weight:700}
+          .brand a:hover{text-decoration:underline}
           .grid{display:grid;grid-template-columns:340px 1fr;gap:18px}
           @media(max-width:980px){.grid{grid-template-columns:1fr}}
           .panel{background:var(--panel);border:1px solid var(--stroke);border-radius:14px;padding:16px}
           .card{background:var(--card);border:1px solid var(--stroke);border-radius:14px;padding:16px}
           .row{display:flex;gap:10px;flex-wrap:wrap}
-          .input,.select{width:100%;padding:12px 14px;background:#0f1320;color:var(--text);border:1px solid var(--stroke);border-radius:10px;font-size:16px}
-          .btn{padding:12px 16px;border:1px solid var(--stroke);background:linear-gradient(180deg,#1a2440,#11182a);color:#fff;border-radius:10px;font-weight:600;cursor:pointer}
+          .input,.select{
+            width:100%;padding:12px 14px;background:#fcfbf7;color:var(--text);
+            border:1px solid var(--stroke);border-radius:10px;font-size:16px
+          }
+          .btn{
+            padding:12px 16px;border:1px solid var(--stroke);
+            background:linear-gradient(180deg,#f3efe7,#e7e1d6);
+            color:#2f3a44;border-radius:10px;font-weight:700;cursor:pointer
+          }
           .btn:active{transform:translateY(1px)}
-          .pill{display:inline-flex;gap:8px;align-items:center;padding:6px 10px;border-radius:999px;background:#0f1320;border:1px solid var(--stroke);color:var(--muted);font-size:12px}
           code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;}
-          pre{background:#0f1320;border:1px solid var(--stroke);border-radius:10px;padding:12px;overflow:auto}
+          pre{background:#fcfbf7;border:1px solid var(--stroke);border-radius:10px;padding:12px;overflow:auto}
           h2{margin:16px 0 10px}
+          .cta{
+            display:flex;justify-content:center;align-items:center;gap:14px;
+            padding:24px;margin-top:28px;background:var(--panel);border:1px solid var(--stroke);border-radius:14px
+          }
+          .cta a{
+            display:inline-block;padding:12px 18px;border-radius:10px;
+            background:var(--accent);color:white;text-decoration:none;font-weight:700
+          }
+          .cta a:hover{background:#276749}
         `}</style>
       </Head>
 
       <div className="container">
         <div className="header">
           <div>
-            <div className="title">📈 Plan Trader — Generator</div>
-            <div className="sub">Generate Pine + webhook JSON for your chosen trigger. Clean UI, fast copy, clear visuals.</div>
+            <div className="title">TAKE THE MARKETS WITH YOU</div>
+            <div className="sub">Generate Pine + alert JSON for ultra-clear trade triggers with crisp visuals.</div>
           </div>
-          <div className="pill"><span>Build</span><span>v1</span></div>
+          <div className="brand">a tool by <a href="https://x.com/philoinvestor" target="_blank" rel="noreferrer">@philoinvestor</a></div>
         </div>
 
         <div className="grid">
@@ -267,20 +254,6 @@ alertcondition(trigger, title="${trigger} Trigger", message='{"symbol":"{{ticker
             <div className="card" style={{ marginTop: 14 }}>
               <strong>ℹ️ Strategy</strong>
               <div style={{ marginTop: 8, color: 'var(--muted)' }}>{explanation}</div>
-            </div>
-
-            <div className="card" style={{ marginTop: 14 }}>
-              <strong>🔗 Webhook</strong>
-              <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
-                <code style={{ flex: 1, padding: '8px 10px', background: '#0f1320', borderRadius: 8, border: '1px solid var(--stroke)' }}>
-                  {webhookUrl}
-                </code>
-                <button className="btn" onClick={() => { navigator.clipboard.writeText(webhookUrl); alert('✅ Webhook URL copied!'); }}>Copy</button>
-                <button className="btn" onClick={testWebhook}>Test</button>
-              </div>
-              <div style={{ marginTop: 8, color: 'var(--muted)', fontSize: 13 }}>
-                Paste this into your TradingView alert&apos;s webhook URL field (optional for open web demo).
-              </div>
             </div>
           </div>
 
@@ -317,24 +290,10 @@ alertcondition(trigger, title="${trigger} Trigger", message='{"symbol":"{{ticker
               </div>
             </div>
 
-            <div className="card" style={{ marginTop: 14 }}>
-              <h2>📋 Webhook Logs</h2>
-              <div style={{ maxHeight: 320, overflowY: 'auto' }}>
-                {webhookLogs.length === 0 ? (
-                  <div style={{ color: 'var(--muted)' }}>No webhook messages received yet…</div>
-                ) : (
-                  webhookLogs.map((log, i) => (
-                    <div key={i} className="panel" style={{ marginBottom: 8 }}>
-                      <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>
-                        Received: {new Date(log.receivedAt).toLocaleString()}
-                      </div>
-                      <pre style={{ margin: 0 }}><code>{JSON.stringify(log, null, 2)}</code></pre>
-                    </div>
-                  ))
-                )}
-              </div>
+            <div className="cta">
+              <div style={{ fontWeight: 700, color: 'var(--text)' }}>Join the waitlist for Co‑Trader 3000</div>
+              <a href="https://forms.gle/e9yVXHze5MnuKqM68" target="_blank" rel="noreferrer">Join Waitlist</a>
             </div>
-
           </div>
         </div>
       </div>
