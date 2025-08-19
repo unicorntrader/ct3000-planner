@@ -1,238 +1,375 @@
+// pages/index.jsx
 import React, { useState, useEffect } from 'react';
+import Head from 'next/head';
+import StrategyVisuals from '../components/StrategyVisuals';
 
-export default function StrategyVisuals({ selected }) {
-  const [selectedStrategy, setSelectedStrategy] = useState(selected || 'breakout');
-  useEffect(() => { if (selected) setSelectedStrategy(selected); }, [selected]);
+export default function Home() {
+  const [ticker, setTicker] = useState('');
+  const [trigger, setTrigger] = useState('breakout');
+  const [pineCode, setPineCode] = useState('');
+  const [webhookJson, setWebhookJson] = useState('');
+  const [explanation, setExplanation] = useState('');
 
-  const C = {
-    bg: '#fffdf8',
-    grid: '#ece7de',
-    text: '#2f3a44',
-    muted: '#5f6b76',
-    green: '#2f855a',
-    red: '#c05621',
-    blue: '#2b6cb0',
-    gold: '#b7791f'
+  useEffect(() => {
+    const getExplanation = () => {
+      switch (trigger) {
+        case 'breakout':
+          return 'Closes above the prior 20‑bar high (classic, excludes current bar); clean momentum breakout.';
+        case 'range_breakout':
+          return '3 red then 1 green; once armed, fires intrabar on break above the green candle’s high (one‑shot).';
+        case 'ma10':
+          return 'Breaks below 10‑period SMA to flag short‑term momentum weakness.';
+        case 'ma50':
+          return 'Breaks below 50‑period SMA to flag higher‑timeframe weakness.';
+        default:
+          return '';
+      }
+    };
+    setExplanation(getExplanation());
+  }, [trigger]);
+
+  const generate = () => {
+    let pine = `//@version=5
+indicator("Trade Watch: ${trigger} Trigger", overlay=true)
+`;
+
+    if (trigger === 'breakout') {
+      pine += `priorHigh = ta.highest(high[1], 20)
+trigger   = ta.crossover(close, priorHigh)
+plot(priorHigh, "Prior 20H", color=color.red)
+`;
+    } else if (trigger === 'ma10') {
+      pine += `ma = ta.sma(close, 10)
+trigger = close < ma
+plot(ma, "SMA10", color=color.blue)
+`;
+    } else if (trigger === 'ma50') {
+      pine += `ma = ta.sma(close, 50)
+trigger = close < ma
+plot(ma, "SMA50", color=color.purple)
+`;
+    } else if (trigger === 'range_breakout') {
+      pine += `three_red_then_green = close[4] < open[4] and close[3] < open[3] and close[2] < open[2] and close[1] > open[1]
+setup_high = high[1]
+setup_low  = math.min(low[4], math.min(low[3], low[2]))
+
+var float range_high = na
+var float range_low  = na
+var bool  armed      = false
+
+if three_red_then_green
+    range_high := setup_high
+    range_low  := setup_low
+    armed      := true
+
+range_established   = armed and not na(range_high) and not na(range_low)
+breakout_condition  = range_established and high > range_high + syminfo.mintick
+invalidated         = range_established and low < range_low
+
+if breakout_condition or invalidated
+    armed      := false
+    range_high := na
+    range_low  := na
+
+plot(range_established ? range_high : na, "Range High", color=color.new(color.blue, 0))
+plot(range_established ? range_low  : na, "Range Low",  color=color.new(color.red, 0))
+trigger = breakout_condition
+`;
+    }
+
+    pine += `
+plotshape(trigger, location=location.belowbar, style=shape.labelup, color=color.green, text="🚨")
+alertcondition(trigger, title="${trigger} Trigger", message='{"symbol":"{{ticker}}","setup":"${trigger}","price":{{close}},"volume":{{volume}},"timestamp":"{{time}}"}')
+`.trim();
+
+    const json = {
+      symbol: ticker?.toUpperCase() || '{{ticker}}',
+      setup: trigger,
+      price: '{{close}}',
+      volume: '{{volume}}',
+      timestamp: '{{time}}',
+    };
+
+    setPineCode(pine);
+    setWebhookJson(JSON.stringify(json, null, 2));
   };
 
-  const Grid = ({ w=640, h=300 }) => (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-      <defs>
-        <pattern id="g" width="24" height="24" patternUnits="userSpaceOnUse">
-          <path d="M24 0H0V24" fill="none" stroke={C.grid} strokeWidth="1"/>
-        </pattern>
-      </defs>
-      <rect width={w} height={h} fill={C.bg}/>
-      <rect width={w} height={h} fill="url(#g)"/>
-    </svg>
+  const Card = ({ title, children, right }) => (
+    <section
+      style={{
+        background: '#FFFFFF',
+        border: '1px solid #E6E1DA',
+        borderRadius: 16,
+        padding: 16,
+        marginTop: 16,
+        boxShadow: '0 6px 20px rgba(0,0,0,0.06)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: '#2C2C2C' }}>{title}</h2>
+        <div style={{ marginLeft: 'auto' }}>{right}</div>
+      </div>
+      {children}
+    </section>
   );
 
-  const Pill = ({ x, y, text, fill = C.green }) => {
-    const padX = 8, padY = 5;
-    const fontSize = 14;
-    const tw = text.length * (fontSize * 0.62);
-    const rw = tw + padX * 2, rh = fontSize + padY * 2;
-    return (
-      <g transform={`translate(${x},${y})`}>
-        <rect x="0" y="0" width={rw} height={rh} rx="10" ry="10" fill={fill} opacity="0.9"/>
-        <text x={padX} y={padY + fontSize * 0.8} fill="#fff" fontSize={fontSize} fontWeight="700">{text}</text>
-      </g>
-    );
-  };
-
-  const visuals = {
-    breakout: (
-      <svg width="640" height="300" viewBox="0 0 640 300">
-        <defs>
-          <pattern id="g" width="24" height="24" patternUnits="userSpaceOnUse">
-            <path d="M24 0H0V24" fill="none" stroke={C.grid} strokeWidth="1"/>
-          </pattern>
-        </defs>
-        <rect width="640" height="300" fill={C.bg}/>
-        <rect width="640" height="300" fill="url(#g)"/>
-        <polyline points="60,210 110,200 160,215 210,205 260,212 310,195 360,206 410,199" fill="none" stroke={C.muted} strokeWidth="3"/>
-        <line x1="60" y1="180" x2="480" y2="180" stroke={C.red} strokeWidth="3" strokeDasharray="8,6"/>
-        <text x="490" y="184" fill={C.red} fontSize="14" fontWeight="700">Prior 20‑bar High</text>
-        <polyline points="410,199 440,172 470,162 500,167 530,150 560,155" fill="none" stroke={C.green} strokeWidth="4"/>
-        <circle cx="440" cy="172" r="6" fill={C.green}/>
-        <g transform="translate(448,144)"><rect width="110" height="28" rx="8" fill={C.green}/><text x="10" y="20" fill="#fff" fontSize="14" fontWeight="700">Breakout</text></g>
-      </svg>
-    ),
-
-    orh: (
-      <svg width="640" height="300" viewBox="0 0 640 300">
-        <defs>
-          <pattern id="g" width="24" height="24" patternUnits="userSpaceOnUse">
-            <path d="M24 0H0V24" fill="none" stroke={C.grid} strokeWidth="1"/>
-          </pattern>
-        </defs>
-        <rect width="640" height="300" fill={C.bg}/>
-        <rect width="640" height="300" fill="url(#g)"/>
-
-        <rect x="80" y="80" width="180" height="140" fill="none" stroke={C.gold} strokeWidth="3"/>
-        <text x="90" y="72" fill={C.gold} fontSize="14" fontWeight="700">Opening Window</text>
-
-        <polyline points="80,200 110,170 140,190 170,160 200,175 230,150" fill="none" stroke={C.muted} strokeWidth="3"/>
-        <line x1="80" y1="140" x2="260" y2="140" stroke={C.blue} strokeWidth="3"/>
-        <text x="270" y="144" fill={C.blue} fontSize="14" fontWeight="700">OR High</text>
-
-        <polyline points="260,150 300,160 340,158 380,162 420,150 460,138 500,142 540,130" fill="none" stroke={C.green} strokeWidth="4"/>
-        <circle cx="460" cy="138" r="7" fill={C.green}/>
-        <g transform="translate(470,112)"><rect width="120" height="28" rx="8" fill={C.green}/><text x="10" y="20" fill="#fff" fontSize="14" fontWeight="700">ORH Break</text></g>
-      </svg>
-    ),
-
-    orl: (
-      <svg width="640" height="300" viewBox="0 0 640 300">
-        <defs>
-          <pattern id="g" width="24" height="24" patternUnits="userSpaceOnUse">
-            <path d="M24 0H0V24" fill="none" stroke={C.grid} strokeWidth="1"/>
-          </pattern>
-        </defs>
-        <rect width="640" height="300" fill={C.bg}/>
-        <rect width="640" height="300" fill="url(#g)"/>
-
-        <rect x="80" y="80" width="180" height="140" fill="none" stroke={C.gold} strokeWidth="3"/>
-        <text x="90" y="72" fill={C.gold} fontSize="14" fontWeight="700">Opening Window</text>
-
-        <polyline points="80,120 110,145 140,130 170,155 200,140 230,165" fill="none" stroke={C.muted} strokeWidth="3"/>
-        <line x1="80" y1="196" x2="260" y2="196" stroke={C.red} strokeWidth="3"/>
-        <text x="270" y="200" fill={C.red} fontSize="14" fontWeight="700">OR Low</text>
-
-        <polyline points="260,160 300,175 340,190 380,205 420,198 460,210 500,220 540,235" fill="none" stroke={C.red} strokeWidth="4"/>
-        <circle cx="460" cy="210" r="7" fill={C.red}/>
-        <g transform="translate(470,222)"><rect width="116" height="28" rx="8" fill={C.red}/><text x="10" y="20" fill="#fff" fontSize="14" fontWeight="700">ORL Break</text></g>
-      </svg>
-    ),
-
-    range_breakout: (
-      <svg width="640" height="300" viewBox="0 0 640 300">
-        <defs>
-          <pattern id="g" width="24" height="24" patternUnits="userSpaceOnUse">
-            <path d="M24 0H0V24" fill="none" stroke={C.grid} strokeWidth="1"/>
-          </pattern>
-        </defs>
-        <rect width="640" height="300" fill={C.bg}/>
-        <rect width="640" height="300" fill="url(#g)"/>
-
-        <rect x="140" y="140" width="26" height="64" fill={C.red} opacity="0.9"/><rect x="176" y="152" width="26" height="52" fill={C.red} opacity="0.9"/><rect x="212" y="158" width="26" height="56" fill={C.red} opacity="0.9"/>
-        <rect x="248" y="164" width="26" height="46" fill={C.green} opacity="0.9"/>
-
-        <line x1="248" y1="164" x2="520" y2="164" stroke={C.blue} strokeWidth="3" strokeDasharray="8,6"/>
-        <text x="528" y="168" fill={C.blue} fontSize="14" fontWeight="700">Reversal High</text>
-
-        <polyline points="274,180 306,170 338,162 370,158 402,154 434,150" fill="none" stroke={C.green} strokeWidth="4"/>
-        <circle cx="338" cy="162" r="6" fill={C.green}/>
-        <g transform="translate(346,134)"><rect width="100" height="28" rx="8" fill={C.green}/><text x="10" y="20" fill="#fff" fontSize="14" fontWeight="700">Breakout</text></g>
-      </svg>
-    ),
-
-    ma10: (
-      <svg width="640" height="300" viewBox="0 0 640 300">
-        <defs>
-          <pattern id="g" width="24" height="24" patternUnits="userSpaceOnUse">
-            <path d="M24 0H0V24" fill="none" stroke={C.grid} strokeWidth="1"/>
-          </pattern>
-        </defs>
-        <rect width="640" height="300" fill={C.bg}/>
-        <rect width="640" height="300" fill="url(#g)"/>
-
-        <polyline points="60,170 110,160 160,150 210,145 260,140 310,145 360,150 410,158" fill="none" stroke={C.green} strokeWidth="3"/>
-        <polyline points="60,184 110,180 160,176 210,172 260,168 310,170 360,174 410,178 460,184" fill="none" stroke={C.blue} strokeWidth="4"/>
-        <polyline points="410,158 440,176 470,188 500,198 530,206" fill="none" stroke={C.red} strokeWidth="4"/>
-        <circle cx="440" cy="176" r="7" fill={C.red}/>
-        <g transform="translate(450,148)"><rect width="140" height="28" rx="8" fill={C.red}/><text x="10" y="20" fill="#fff" fontSize="14" fontWeight="700">Break below MA10</text></g>
-      </svg>
-    ),
-
-    ma50: (
-      <svg width="640" height="300" viewBox="0 0 640 300">
-        <defs>
-          <pattern id="g" width="24" height="24" patternUnits="userSpaceOnUse">
-            <path d="M24 0H0V24" fill="none" stroke={C.grid} strokeWidth="1"/>
-          </pattern>
-        </defs>
-        <rect width="640" height="300" fill={C.bg}/>
-        <rect width="640" height="300" fill="url(#g)"/>
-
-        <polyline points="60,200 110,190 160,182 210,176 260,170 310,166 360,162 410,160" fill="none" stroke={C.green} strokeWidth="3"/>
-        <polyline points="60,214 120,212 180,210 240,208 300,206 360,204 420,202 480,201" fill="none" stroke="#7b61ff" strokeWidth="5"/>
-        <polyline points="420,160 450,178 480,196 510,212 540,226" fill="none" stroke={C.red} strokeWidth="5"/>
-        <circle cx="480" cy="196" r="8" fill={C.red}/>
-        <g transform="translate(490,170)"><rect width="160" height="28" rx="8" fill={C.red}/><text x="10" y="20" fill="#fff" fontSize="14" fontWeight="700">Major MA50 Breakdown</text></g>
-      </svg>
-    ),
-  };
-
-  const strategies = {
-    breakout: {
-      title: 'Breakout (20‑bar High)',
-      description: 'Close crosses above the prior 20‑bar high. Cleaner, close‑based breakout.',
-      keyPoints: ['Clear level', 'Momentum confirmation', 'Works on any timeframe'],
-      visual: visuals.breakout,
-    },
-    orh: {
-      title: 'Opening Range High (ORH)',
-      description: 'Locks the opening window, then fires intrabar on a break of the OR High (one‑shot).',
-      keyPoints: ['Respects session context', 'One‑shot once armed', 'Great for trend days'],
-      visual: visuals.orh,
-    },
-    orl: {
-      title: 'Opening Range Low (ORL)',
-      description: 'Locks the opening window, then fires intrabar on a break of the OR Low (one‑shot).',
-      keyPoints: ['Downside momentum', 'One‑shot once armed', 'Clean risk framing'],
-      visual: visuals.orl,
-    },
-    range_breakout: {
-      title: 'Range Breakout (Bottom Reversal)',
-      description: '3 red then a green reversal. Armed on the green; fires intrabar on a break above its high.',
-      keyPoints: ['Early reversal capture', 'Invalidates on range‑low break', 'One‑shot trigger'],
-      visual: visuals.range_breakout,
-    },
-    ma10: {
-      title: 'MA10 Breakdown',
-      description: 'Break below the 10‑period SMA signals short‑term weakness.',
-      keyPoints: ['Quick momentum read', 'Good for pullback alerts', 'Pairs with trend filters'],
-      visual: visuals.ma10,
-    },
-    ma50: {
-      title: 'MA50 Breakdown',
-      description: 'Break below the 50‑period SMA flags a bigger trend shift.',
-      keyPoints: ['Higher‑timeframe signal', 'Often precedes deeper corrections', 'Widely watched level'],
-      visual: visuals.ma50,
-    },
-  };
-
-  const s = strategies[selectedStrategy];
-
   return (
-    <div>
-      {!selected && (
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ display: 'block', fontSize: 14, color: C.muted, marginBottom: 6 }}>Select Strategy</label>
+    <>
+      <Head>
+        <title>TAKE THE MARKETS WITH YOU</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+          rel="stylesheet"
+        />
+        <style>{`
+          :root {
+            --bg: #FAF7F2; /* warm/earthy off-white */
+            --ink: #1C1B1A;
+            --muted: #6B655E;
+            --accent: #0E7C66; /* deep green */
+          }
+          * { box-sizing: border-box; }
+          html, body { height: 100%; }
+          body {
+            margin: 0;
+            font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--ink);
+          }
+          a { color: var(--accent); text-decoration: none; }
+          a:hover { text-decoration: underline; }
+          code { font-family: "Courier New", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+        `}</style>
+      </Head>
+
+      <div style={{ padding: '28px 20px', maxWidth: 1100, margin: '0 auto' }}>
+        {/* Header */}
+        <header style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 12 }}>
+          <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: 0.2, margin: 0 }}>
+            TAKE THE MARKETS WITH YOU
+          </h1>
+          <span style={{ color: 'var(--muted)', fontSize: 14 }}>
+            a tool by <a href="https://x.com/philoinvestor" target="_blank" rel="noreferrer">@philoinvestor</a>
+          </span>
+        </header>
+
+        {/* Controls */}
+        <section
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1.5fr 1fr auto',
+            gap: 12,
+            alignItems: 'center',
+            marginBottom: 8,
+          }}
+        >
+          <input
+            value={ticker}
+            onChange={(e) => setTicker(e.target.value)}
+            placeholder="Ticker (e.g. AAPL)"
+            style={{
+              padding: '12px 14px',
+              fontSize: 18,
+              borderRadius: 12,
+              border: '1px solid #D8D2C9',
+              background: '#FFF',
+              outline: 'none',
+            }}
+          />
           <select
-            value={selectedStrategy}
-            onChange={(e) => setSelectedStrategy(e.target.value)}
-            style={{ padding: '10px 12px', fontSize: 16, border: '1px solid #e6e2da', borderRadius: 10, width: '100%', background: '#fcfbf7' }}
+            value={trigger}
+            onChange={(e) => setTrigger(e.target.value)}
+            style={{
+              padding: '12px 40px 12px 14px',
+              fontSize: 18,
+              borderRadius: 12,
+              border: '1px solid #D8D2C9',
+              background: '#FFF',
+              appearance: 'none',
+              backgroundImage:
+                'url("data:image/svg+xml;utf8,<svg fill=\\"%236B655E\\" height=\\"20\\" viewBox=\\"0 0 24 24\\" width=\\"20\\" xmlns=\\"http://www.w3.org/2000/svg\\"><path d=\\"M7 10l5 5 5-5\\"/></svg>")',
+              backgroundRepeat: 'no-repeat',
+              backgroundPositionX: 'calc(100% - 12px)',
+              backgroundPositionY: 'center',
+            }}
           >
-            {Object.entries(strategies).map(([key, v]) => (
-              <option key={key} value={key}>{v.title}</option>
-            ))}
+            <option value="breakout">Breakout</option>
+            <option value="range_breakout">Range Breakout</option>
+            <option value="ma10">MA10 Breakdown</option>
+            <option value="ma50">MA50 Breakdown</option>
           </select>
-        </div>
-      )}
 
-      <h2 style={{ fontSize: 20, fontWeight: 800, color: C.text, marginBottom: 10 }}>{s.title}</h2>
+          <button
+            onClick={generate}
+            style={{
+              padding: '12px 24px',
+              fontSize: 20,
+              cursor: 'pointer',
+              background: 'var(--accent)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 12,
+              boxShadow: '0 8px 18px rgba(14,124,102,0.25)',
+              transform: 'translateY(0)',
+              transition: 'transform 120ms ease, box-shadow 120ms ease',
+              fontWeight: 700,
+              whiteSpace: 'nowrap',
+            }}
+            onMouseDown={(e) => (e.currentTarget.style.transform = 'translateY(1px)')}
+            onMouseUp={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
+          >
+            🚀 Generate
+          </button>
+        </section>
 
-      <div style={{ border: `1px solid ${C.grid}`, borderRadius: 12, overflow: 'hidden', background: C.bg, marginBottom: 12 }}>
-        {s.visual}
+        {/* Strategy summary */}
+        <Card title="Strategy">
+          <p style={{ margin: 0, color: '#3b3a38', lineHeight: 1.5 }}>{explanation}</p>
+        </Card>
+
+        {/* Visuals */}
+        <Card title={null}>
+          <StrategyVisuals selected={trigger} />
+        </Card>
+
+        {/* Pine Script */}
+        <Card
+          title="📜 Pine Script"
+          right={
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(pineCode);
+                const el = document.getElementById('pine-copied');
+                if (el) {
+                  el.style.opacity = 1;
+                  setTimeout(() => (el.style.opacity = 0), 1200);
+                }
+              }}
+              style={{
+                padding: '8px 12px',
+                fontSize: 14,
+                borderRadius: 10,
+                border: '1px solid #D8D2C9',
+                background: '#FFF',
+                cursor: 'pointer',
+              }}
+            >
+              Copy
+            </button>
+          }
+        >
+          <span
+            id="pine-copied"
+            style={{
+              position: 'absolute',
+              right: 84,
+              marginTop: -34,
+              opacity: 0,
+              transition: 'opacity .2s ease',
+              fontSize: 13,
+              color: 'var(--accent)',
+              fontWeight: 600,
+            }}
+          >
+            ✅ Copied!
+          </span>
+
+          <div
+            style={{
+              background: '#F3EFE8',
+              border: '1px solid #E6E1DA',
+              borderRadius: 12,
+              padding: 12,
+              height: 260, // fixed height
+              overflow: 'auto', // scroll inside
+            }}
+          >
+            <code style={{ fontSize: 14, whiteSpace: 'pre' }}>
+              {pineCode || '// Click Generate to preview Pine Script here…'}
+            </code>
+          </div>
+        </Card>
+
+        {/* Webhook JSON */}
+        <Card
+          title="📦 Webhook JSON"
+          right={
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(webhookJson);
+                const el = document.getElementById('json-copied');
+                if (el) {
+                  el.style.opacity = 1;
+                  setTimeout(() => (el.style.opacity = 0), 1200);
+                }
+              }}
+              style={{
+                padding: '8px 12px',
+                fontSize: 14,
+                borderRadius: 10,
+                border: '1px solid #D8D2C9',
+                background: '#FFF',
+                cursor: 'pointer',
+              }}
+            >
+              Copy
+            </button>
+          }
+        >
+          <span
+            id="json-copied"
+            style={{
+              position: 'absolute',
+              right: 84,
+              marginTop: -34,
+              opacity: 0,
+              transition: 'opacity .2s ease',
+              fontSize: 13,
+              color: 'var(--accent)',
+              fontWeight: 600,
+            }}
+          >
+            ✅ Copied!
+          </span>
+
+          <div
+            style={{
+              background: '#F8F6F2',
+              border: '1px solid #E6E1DA',
+              borderRadius: 12,
+              padding: 12,
+              height: 260, // fixed height
+              overflow: 'auto', // scroll inside
+            }}
+          >
+            <code style={{ fontSize: 14, whiteSpace: 'pre' }}>
+              {webhookJson || '{\n  // Click Generate to preview Webhook JSON here…\n}'}
+            </code>
+          </div>
+        </Card>
+
+        {/* CTA */}
+        <section style={{ textAlign: 'center', marginTop: 28, marginBottom: 10 }}>
+          <a
+            href="https://forms.gle/e9yVXHze5MnuKqM68"
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              display: 'inline-block',
+              padding: '14px 22px',
+              fontSize: 18,
+              fontWeight: 700,
+              color: '#fff',
+              background: 'var(--accent)',
+              borderRadius: 12,
+              boxShadow: '0 8px 18px rgba(14,124,102,0.25)',
+            }}
+          >
+            Join the waitlist for Co‑Trader 3000
+          </a>
+        </section>
       </div>
-
-      <p style={{ color: C.muted, fontSize: 16, lineHeight: 1.5, margin: '6px 0 10px' }}>{s.description}</p>
-
-      <ul style={{ color: C.text, fontSize: 16, margin: 0, paddingLeft: 18 }}>
-        {s.keyPoints.map((pt, i) => <li key={i} style={{ marginBottom: 6 }}>{pt}</li>)}
-      </ul>
-    </div>
+    </>
   );
 }
