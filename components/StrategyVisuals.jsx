@@ -363,5 +363,4 @@ alertcondition(trigger, title="${trigger} Trigger", message='{"symbol":"{{ticker
   );
 }
 
-// If you still ever see prerender issues, uncomment this to force SSR:
-// export async function getServerSideProps() { return { props: {} }; }
+export async function getServerSideProps() { return { props: {} }; }
