@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
-import StrategyVisuals from '@/components/StrategyVisuals';
+import StrategyVisuals from '../components/StrategyVisuals';
 
 export default function Home() {
   const [ticker, setTicker] = useState('');
