@@ -14,14 +14,15 @@ export default function Home() {
   const [webhookJson, setWebhookJson] = useState('');
   const [explanation, setExplanation] = useState('');
 
-  // UX: auto-generate + subtle "Updated" pulse
-  const [auto, setAuto] = useState(true);
+  // UX: subtle "Updated" pulse + toast for Generate
   const [justUpdated, setJustUpdated] = useState(false);
+  const [toast, setToast] = useState('');
   const genTimer = useRef(null);
   const pulseTimer = useRef(null);
+  const toastTimer = useRef(null);
 
   // --- Generate Pine + JSON ---
-  const generate = () => {
+  const doGenerate = () => {
     let pine = `//@version=5
 indicator("Trade Watch: ${trigger} Trigger", overlay=true)
 `;
@@ -108,20 +109,19 @@ alertcondition(trigger, title="range_breakout Trigger",
     setPineCode(pine.trim());
     setWebhookJson(json);
 
-    // pulse "Updated"
+    // subtle pulse
     setJustUpdated(true);
     clearTimeout(pulseTimer.current);
     pulseTimer.current = setTimeout(() => setJustUpdated(false), 900);
   };
 
-  // Auto-generate (debounced) whenever inputs change
+  // Always auto-generate (debounced) on any change
   useEffect(() => {
-    if (!auto) return;
     clearTimeout(genTimer.current);
-    genTimer.current = setTimeout(generate, 150);
+    genTimer.current = setTimeout(doGenerate, 150);
     return () => clearTimeout(genTimer.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ticker, trigger, breakoutBasis, breakoutLen, auto]);
+  }, [ticker, trigger, breakoutBasis, breakoutLen]);
 
   useEffect(() => {
     const getExplanation = () => {
@@ -141,14 +141,21 @@ alertcondition(trigger, title="range_breakout Trigger",
     setExplanation(getExplanation());
   }, [trigger, breakoutBasis, breakoutLen]);
 
-  // Hotkey: Cmd/Ctrl+Enter to force-generate
+  // Hotkey: Cmd/Ctrl+Enter → show toast (you don’t need to click)
   useEffect(() => {
     const onKey = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') generate();
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleGenerateClick();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   });
+
+  const handleGenerateClick = () => {
+    // Codes already auto-regenerate; just reassure
+    setToast("You don’t need to click Generate — code updates automatically ✅");
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(''), 1600);
+  };
 
   return (
     <>
@@ -164,13 +171,12 @@ alertcondition(trigger, title="range_breakout Trigger",
           a { color:#1d4ed8; text-decoration:none; } a:hover{text-decoration:underline;}
           .container { padding:2rem; max-width:900px; margin:0 auto; }
 
-          /* Sticky action bar */
+          /* Sticky action bar: full-width inside container (no shrink) */
           .actionbar {
             position: sticky; top:0; z-index: 20;
             display:flex; gap:10px; align-items:center;
-            padding:10px; margin:-10px -10px 14px -10px;
-            background: rgba(255,255,255,0.85);
-            backdrop-filter: blur(6px);
+            padding:10px 0; margin:0 0 14px 0;
+            background:#ffffffF2; /* subtle */
             border-bottom:1px solid #e5e7eb;
           }
           .actionbar input, .actionbar select {
@@ -179,18 +185,19 @@ alertcondition(trigger, title="range_breakout Trigger",
           .generate {
             padding:10px 18px; font-size:16px; cursor:pointer; background:#0ea5e9; color:#fff; border:none; border-radius:8px;
           }
-          .autoToggle {
-            display:flex; align-items:center; gap:6px; margin-left:auto;
-            font-size:13px; color:#374151;
-          }
           .pulse {
-            font-size:12px; color:#10b981; opacity:0; transition:opacity .25s ease;
-            margin-left:6px;
+            font-size:12px; color:#10b981; opacity:0; transition:opacity .25s ease; margin-left:6px;
           }
           .pulse.show { opacity:1; }
 
-          .info { margin: 14px 0 18px; font-size:16px; background: var(--card); padding: 12px; border-radius: 8px; border: 1px solid #e5e7eb; }
+          .toast {
+            position: fixed; left: 50%; transform: translateX(-50%);
+            bottom: 24px; z-index: 50;
+            background:#111; color:#fff; padding:10px 14px; border-radius:8px; font-size:14px;
+            box-shadow: 0 8px 20px rgba(0,0,0,.25);
+          }
 
+          .info { margin:14px 0 18px; font-size:16px; background: var(--card); padding:12px; border-radius:8px; border:1px solid #e5e7eb; }
           .section-title { font-size:24px; margin:24px 0 8px; }
           .code-wrap { position:relative; }
           .copy-btn {
@@ -203,10 +210,8 @@ alertcondition(trigger, title="range_breakout Trigger",
           }
           code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
 
-          /* Responsive: keep on one line until narrow */
           @media (max-width: 820px){
             .actionbar { flex-wrap: wrap; }
-            .autoToggle { order: 3; width: 100%; justify-content: flex-end; }
           }
         `}</style>
       </Head>
@@ -217,15 +222,18 @@ alertcondition(trigger, title="range_breakout Trigger",
           <div style={{fontSize:14, color:'#6b7280'}}>
             a tool by <a href="https://x.com/philoinvestor" target="_blank" rel="noreferrer">@philoinvestor</a>
           </div>
-          <a className="waitlist" href="https://forms.gle/e9yVXHze5MnuKqM68" target="_blank" rel="noreferrer"
-            style={{padding:'10px 14px', fontSize:15, fontWeight:600, borderRadius:8, border:'1px solid #d1d5db', background:'#f3f4f6', color:'#111'}}>
+          <a
+            href="https://forms.gle/e9yVXHze5MnuKqM68"
+            target="_blank" rel="noreferrer"
+            style={{padding:'10px 14px', fontSize:15, fontWeight:600, borderRadius:8, border:'1px solid #d1d5db', background:'#f3f4f6', color:'#111'}}
+          >
             Join the Co-Trader 3000 waitlist
           </a>
         </div>
 
         <h1 style={{margin:'6px 0 6px'}}>TAKE THE MARKETS WITH YOU</h1>
 
-        {/* Sticky Action Bar */}
+        {/* Sticky Action Bar (not shrunken) */}
         <div className="actionbar">
           <input
             value={ticker}
@@ -257,13 +265,11 @@ alertcondition(trigger, title="range_breakout Trigger",
             </>
           )}
 
-          <button className="generate" onClick={generate} title="Cmd/Ctrl + Enter">Generate</button>
+          <button className="generate" onClick={handleGenerateClick} title="No need to click — it auto-updates">
+            Generate
+          </button>
 
-          <label className="autoToggle">
-            <input type="checkbox" checked={auto} onChange={e => setAuto(e.target.checked)} />
-            Auto
-            <span className={`pulse ${justUpdated ? 'show' : ''}`}>{justUpdated ? 'Updated ✓' : ''}</span>
-          </label>
+          <span className={`pulse ${justUpdated ? 'show' : ''}`}>{justUpdated ? 'Updated ✓' : ''}</span>
         </div>
 
         <div className="info">
@@ -306,6 +312,8 @@ alertcondition(trigger, title="range_breakout Trigger",
           <pre><code>{webhookJson}</code></pre>
         </div>
       </div>
+
+      {toast && <div className="toast">{toast}</div>}
     </>
   );
 }
