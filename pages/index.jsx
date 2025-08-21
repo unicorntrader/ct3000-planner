@@ -5,6 +5,11 @@ import StrategyVisuals from '../components/StrategyVisuals';
 export default function Home() {
   const [ticker, setTicker] = useState('');
   const [trigger, setTrigger] = useState('breakout');
+
+  // Breakout controls
+  const [breakoutBasis, setBreakoutBasis] = useState('High'); // High | Close
+  const [breakoutLen, setBreakoutLen] = useState(20);
+
   const [pineCode, setPineCode] = useState('');
   const [webhookJson, setWebhookJson] = useState('');
   const [explanation, setExplanation] = useState('');
@@ -13,19 +18,19 @@ export default function Home() {
     const getExplanation = () => {
       switch (trigger) {
         case 'breakout':
-          return 'Closes above the prior 20‑bar high (excludes the current bar) for a classic, cleaner breakout.';
+          return `Closes above the prior ${breakoutLen}-bar ${breakoutBasis.toLowerCase()} (excludes current bar) for a classic, cleaner breakout.`;
         case 'ma10':
-          return 'Triggers when price breaks below the 10‑period SMA to flag short‑term weakness.';
+          return 'Triggers when price breaks below the 10-period SMA to flag short-term weakness.';
         case 'ma50':
-          return 'Triggers when price breaks below the 50‑period SMA to flag higher‑timeframe weakness.';
+          return 'Triggers when price breaks below the 50-period SMA to flag higher-timeframe weakness.';
         case 'range_breakout':
-          return '3 red candles then 1 green; once armed, fires intrabar on a break above the green candle’s high (one‑shot).';
+          return '3 red candles then 1 green; once armed, fires intrabar on a break above the green candle’s high (one-shot).';
         default:
           return '';
       }
     };
     setExplanation(getExplanation());
-  }, [trigger]);
+  }, [trigger, breakoutBasis, breakoutLen]);
 
   const generate = () => {
     let pine = `//@version=5
@@ -33,19 +38,40 @@ indicator("Trade Watch: ${trigger} Trigger", overlay=true)
 `;
 
     if (trigger === 'breakout') {
-      pine += `priorHigh = ta.highest(high[1], 20)
-trigger   = ta.crossover(close, priorHigh)
-plot(priorHigh, "Prior 20H", color=color.red)
+      // Pine with user-visible inputs (toggle + lookback), fixed alert JSON
+      pine += `len      = input.int(${Math.max(1, Number(breakoutLen) || 20)}, "Lookback Length", minval=1)
+basisSrc = input.string("${breakoutBasis}", "Breakout Basis", options=["High","Close"])
+
+// Select prior series (exclude current bar)
+priorSeries = basisSrc == "High" ? high[1] : close[1]
+level       = ta.highest(priorSeries, len)
+
+// Trigger: close crosses above the level
+trigger = ta.crossover(close, level)
+
+// Plots
+plot(level, "Prior " + basisSrc + " (" + str.tostring(len) + ")", color=color.red, linewidth=2)
+plotshape(trigger, location=location.belowbar, style=shape.labelup, color=color.green, text="🚨")
+
+// Alert (webhook-safe: numbers unquoted, strings quoted)
+alertcondition(trigger, title="breakout Trigger",
+  message='{"symbol":"{{ticker}}","setup":"breakout","basis":"'+basisSrc+'","lookback":'+str.tostring(len)+',"price":{{close}},"volume":{{volume}},"timestamp":"{{time}}","interval":"{{interval}}"}')
 `;
     } else if (trigger === 'ma10') {
       pine += `ma = ta.sma(close, 10)
-trigger = close < ma
+trigger = ta.crossunder(close, ma)
 plot(ma, "SMA10", color=color.blue)
+plotshape(trigger, location=location.belowbar, style=shape.labelup, color=color.green, text="🚨")
+alertcondition(trigger, title="ma10 Trigger",
+  message='{"symbol":"{{ticker}}","setup":"ma10_breakdown","maLen":10,"price":{{close}},"volume":{{volume}},"timestamp":"{{time}}","interval":"{{interval}}"}')
 `;
     } else if (trigger === 'ma50') {
       pine += `ma = ta.sma(close, 50)
-trigger = close < ma
+trigger = ta.crossunder(close, ma)
 plot(ma, "SMA50", color=color.purple)
+plotshape(trigger, location=location.belowbar, style=shape.labelup, color=color.green, text="🚨")
+alertcondition(trigger, title="ma50 Trigger",
+  message='{"symbol":"{{ticker}}","setup":"ma50_breakdown","maLen":50,"price":{{close}},"volume":{{volume}},"timestamp":"{{time}}","interval":"{{interval}}"}')
 `;
     } else if (trigger === 'range_breakout') {
       pine += `three_red_then_green = close[4] < open[4] and close[3] < open[3] and close[2] < open[2] and close[1] > open[1]
@@ -72,25 +98,28 @@ if breakout_condition or invalidated
 
 plot(range_established ? range_high : na, "Range High", color=color.blue)
 plot(range_established ? range_low  : na, "Range Low",  color=color.red)
+
 trigger = breakout_condition
+plotshape(trigger, location=location.belowbar, style=shape.labelup, color=color.green, text="🚨")
+
+alertcondition(trigger, title="range_breakout Trigger",
+  message='{"symbol":"{{ticker}}","setup":"range_breakout","price":{{close}},"rangeHigh":'+str.tostring(range_high)+',"rangeLow":'+str.tostring(range_low)+',"volume":{{volume}},"timestamp":"{{time}}","interval":"{{interval}}"}')
 `;
     }
 
-    pine += `
-plotshape(trigger, location=location.belowbar, style=shape.labelup, color=color.green, text="🚨")
-alertcondition(trigger, title="${trigger} Trigger", message='{"symbol":"{{ticker}}","setup":"${trigger}","price":{{close}},"volume":{{volume}},"timestamp":"{{time}}"}')
-`.trim();
+    // --- Webhook JSON to copy (numbers unquoted, strings quoted) ---
+    const sym = (ticker?.toUpperCase() || '{{ticker}}');
+    const json = `{
+  "symbol": "${sym}",
+  "setup": "${trigger}",
+  "price": {{close}},
+  "volume": {{volume}},
+  "timestamp": "{{time}}",
+  "interval": "{{interval}}"
+}`;
 
-    const json = {
-      symbol: ticker?.toUpperCase() || '{{ticker}}',
-      setup: trigger,
-      price: '{{close}}',
-      volume: '{{volume}}',
-      timestamp: '{{time}}',
-    };
-
-    setPineCode(pine);
-    setWebhookJson(JSON.stringify(json, null, 2));
+    setPineCode(pine.trim());
+    setWebhookJson(json);
   };
 
   return (
@@ -145,7 +174,7 @@ alertcondition(trigger, title="${trigger} Trigger", message='{"symbol":"{{ticker
             target="_blank"
             rel="noreferrer"
           >
-            Join the Co‑Trader 3000 waitlist
+            Join the Co-Trader 3000 waitlist
           </a>
         </div>
 
@@ -168,6 +197,30 @@ alertcondition(trigger, title="${trigger} Trigger", message='{"symbol":"{{ticker
             <option value="ma10">MA10 Breakdown</option>
             <option value="ma50">MA50 Breakdown</option>
           </select>
+
+          {/* Breakout-only controls */}
+          {trigger === 'breakout' && (
+            <>
+              <select
+                value={breakoutBasis}
+                onChange={e => setBreakoutBasis(e.target.value)}
+                title="Breakout Basis"
+                style={{ minWidth: '180px' }}
+              >
+                <option value="High">High</option>
+                <option value="Close">Close</option>
+              </select>
+              <input
+                type="number"
+                min={1}
+                value={breakoutLen}
+                onChange={e => setBreakoutLen(parseInt(e.target.value || '1', 10))}
+                placeholder="Lookback (e.g. 20)"
+                style={{ width: '160px' }}
+              />
+            </>
+          )}
+
           <button onClick={generate}>Generate</button>
         </div>
 
