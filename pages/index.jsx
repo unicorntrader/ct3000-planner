@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import StrategyVisuals from '../components/StrategyVisuals';
 
@@ -14,31 +14,19 @@ export default function Home() {
   const [webhookJson, setWebhookJson] = useState('');
   const [explanation, setExplanation] = useState('');
 
-  useEffect(() => {
-    const getExplanation = () => {
-      switch (trigger) {
-        case 'breakout':
-          return `Closes above the prior ${breakoutLen}-bar ${breakoutBasis.toLowerCase()} (excludes current bar) for a classic, cleaner breakout.`;
-        case 'ma10':
-          return 'Triggers when price breaks below the 10-period SMA to flag short-term weakness.';
-        case 'ma50':
-          return 'Triggers when price breaks below the 50-period SMA to flag higher-timeframe weakness.';
-        case 'range_breakout':
-          return '3 red candles then 1 green; once armed, fires intrabar on a break above the green candle’s high (one-shot).';
-        default:
-          return '';
-      }
-    };
-    setExplanation(getExplanation());
-  }, [trigger, breakoutBasis, breakoutLen]);
+  // UX: auto-generate + subtle "Updated" pulse
+  const [auto, setAuto] = useState(true);
+  const [justUpdated, setJustUpdated] = useState(false);
+  const genTimer = useRef(null);
+  const pulseTimer = useRef(null);
 
+  // --- Generate Pine + JSON ---
   const generate = () => {
     let pine = `//@version=5
 indicator("Trade Watch: ${trigger} Trigger", overlay=true)
 `;
 
     if (trigger === 'breakout') {
-      // Pine with user-visible inputs (toggle + lookback), fixed alert JSON
       pine += `len      = input.int(${Math.max(1, Number(breakoutLen) || 20)}, "Lookback Length", minval=1)
 basisSrc = input.string("${breakoutBasis}", "Breakout Basis", options=["High","Close"])
 
@@ -107,7 +95,6 @@ alertcondition(trigger, title="range_breakout Trigger",
 `;
     }
 
-    // --- Webhook JSON to copy (numbers unquoted, strings quoted) ---
     const sym = (ticker?.toUpperCase() || '{{ticker}}');
     const json = `{
   "symbol": "${sym}",
@@ -120,7 +107,48 @@ alertcondition(trigger, title="range_breakout Trigger",
 
     setPineCode(pine.trim());
     setWebhookJson(json);
+
+    // pulse "Updated"
+    setJustUpdated(true);
+    clearTimeout(pulseTimer.current);
+    pulseTimer.current = setTimeout(() => setJustUpdated(false), 900);
   };
+
+  // Auto-generate (debounced) whenever inputs change
+  useEffect(() => {
+    if (!auto) return;
+    clearTimeout(genTimer.current);
+    genTimer.current = setTimeout(generate, 150);
+    return () => clearTimeout(genTimer.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticker, trigger, breakoutBasis, breakoutLen, auto]);
+
+  useEffect(() => {
+    const getExplanation = () => {
+      switch (trigger) {
+        case 'breakout':
+          return `Closes above the prior ${breakoutLen}-bar ${breakoutBasis.toLowerCase()} (excludes current bar) for a classic, cleaner breakout.`;
+        case 'ma10':
+          return 'Triggers when price breaks below the 10-period SMA to flag short-term weakness.';
+        case 'ma50':
+          return 'Triggers when price breaks below the 50-period SMA to flag higher-timeframe weakness.';
+        case 'range_breakout':
+          return '3 red candles then 1 green; once armed, fires intrabar on a break above the green candle’s high (one-shot).';
+        default:
+          return '';
+      }
+    };
+    setExplanation(getExplanation());
+  }, [trigger, breakoutBasis, breakoutLen]);
+
+  // Hotkey: Cmd/Ctrl+Enter to force-generate
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') generate();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
   return (
     <>
@@ -128,107 +156,121 @@ alertcondition(trigger, title="range_breakout Trigger",
         <title>TAKE THE MARKETS WITH YOU</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <style>{`
+          :root { --card:#eef2f7; --ink:#0b0c0e; --muted:#6b7280; }
           body {
-            margin: 0;
-            font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-            background: #ffffff;
-            color: #0b0c0e;
+            margin:0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+            background:#fff; color:var(--ink);
           }
-          a { color: #1d4ed8; text-decoration: none; }
-          a:hover { text-decoration: underline; }
-          .container { padding: 2rem; max-width: 900px; margin: 0 auto; }
-          .topline { display:flex; align-items:center; justify-content: space-between; margin-bottom: 8px; }
-          .byline { font-size: 14px; color: #6b7280; }
-          .waitlist { padding: 10px 14px; font-size: 15px; font-weight: 600; border-radius: 8px; border: 1px solid #d1d5db; background:#f3f4f6; color:#111; }
-          h1 { font-size: 32px; font-weight: 700; margin: 6px 0 16px; }
-          .controls { display:flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
-          .controls input, .controls select {
-            padding: 10px 12px; font-size: 16px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff;
+          a { color:#1d4ed8; text-decoration:none; } a:hover{text-decoration:underline;}
+          .container { padding:2rem; max-width:900px; margin:0 auto; }
+
+          /* Sticky action bar */
+          .actionbar {
+            position: sticky; top:0; z-index: 20;
+            display:flex; gap:10px; align-items:center;
+            padding:10px; margin:-10px -10px 14px -10px;
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(6px);
+            border-bottom:1px solid #e5e7eb;
           }
-          .controls button {
-            padding: 10px 18px; font-size: 16px; cursor: pointer; background: #0ea5e9; color:#fff; border: none; border-radius: 8px;
+          .actionbar input, .actionbar select {
+            padding:10px 12px; font-size:16px; border:1px solid #d1d5db; border-radius:6px; background:#fff;
           }
-          .info { margin-bottom: 1.25rem; font-size: 16px; background: #eef2f7; padding: 1rem; border-radius: 6px; border: 1px solid #e5e7eb; }
-          .section-title { font-size: 24px; margin: 24px 0 8px; }
-          .code-wrap { position: relative; }
+          .generate {
+            padding:10px 18px; font-size:16px; cursor:pointer; background:#0ea5e9; color:#fff; border:none; border-radius:8px;
+          }
+          .autoToggle {
+            display:flex; align-items:center; gap:6px; margin-left:auto;
+            font-size:13px; color:#374151;
+          }
+          .pulse {
+            font-size:12px; color:#10b981; opacity:0; transition:opacity .25s ease;
+            margin-left:6px;
+          }
+          .pulse.show { opacity:1; }
+
+          .info { margin: 14px 0 18px; font-size:16px; background: var(--card); padding: 12px; border-radius: 8px; border: 1px solid #e5e7eb; }
+
+          .section-title { font-size:24px; margin:24px 0 8px; }
+          .code-wrap { position:relative; }
           .copy-btn {
-            position: absolute; top: 10px; right: 10px; font-size: 13px; padding: 6px 10px; background: #111; color:#fff; border: none; cursor:pointer; border-radius: 6px;
+            position:absolute; top:10px; right:10px; font-size:13px; padding:6px 10px; background:#111; color:#fff; border:none; cursor:pointer; border-radius:6px;
           }
-          .copied { position:absolute; top:10px; right:84px; opacity:0; transition: opacity .3s; font-size:13px; color:#111; }
+          .copied { position:absolute; top:10px; right:84px; opacity:0; transition:opacity .3s; font-size:13px; color:#111; }
           pre {
-            background: #0b1021; color: #d1e9ff; padding: 1rem; border-radius: 8px;
-            overflow-x: auto; overflow-y: auto; max-height: 300px; font-size: 14px; margin: 0;
+            background:#0b1021; color:#d1e9ff; padding:1rem; border-radius:8px;
+            overflow:auto; max-height:300px; font-size:14px; margin:0;
           }
           code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+
+          /* Responsive: keep on one line until narrow */
+          @media (max-width: 820px){
+            .actionbar { flex-wrap: wrap; }
+            .autoToggle { order: 3; width: 100%; justify-content: flex-end; }
+          }
         `}</style>
       </Head>
 
       <div className="container">
-        <div className="topline">
-          <div className="byline">
+        {/* Top line */}
+        <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8}}>
+          <div style={{fontSize:14, color:'#6b7280'}}>
             a tool by <a href="https://x.com/philoinvestor" target="_blank" rel="noreferrer">@philoinvestor</a>
           </div>
-          <a
-            className="waitlist"
-            href="https://forms.gle/e9yVXHze5MnuKqM68"
-            target="_blank"
-            rel="noreferrer"
-          >
+          <a className="waitlist" href="https://forms.gle/e9yVXHze5MnuKqM68" target="_blank" rel="noreferrer"
+            style={{padding:'10px 14px', fontSize:15, fontWeight:600, borderRadius:8, border:'1px solid #d1d5db', background:'#f3f4f6', color:'#111'}}>
             Join the Co-Trader 3000 waitlist
           </a>
         </div>
 
-        <h1>TAKE THE MARKETS WITH YOU</h1>
+        <h1 style={{margin:'6px 0 6px'}}>TAKE THE MARKETS WITH YOU</h1>
 
-        <div className="controls">
+        {/* Sticky Action Bar */}
+        <div className="actionbar">
           <input
             value={ticker}
             onChange={e => setTicker(e.target.value)}
             placeholder="Ticker (e.g. AAPL)"
-            style={{ flex: '1 1 200px' }}
+            style={{ flex:'1 1 200px' }}
           />
-          <select
-            value={trigger}
-            onChange={e => setTrigger(e.target.value)}
-            style={{ minWidth: '220px' }}
-          >
+          <select value={trigger} onChange={e => setTrigger(e.target.value)} style={{ minWidth:220 }}>
             <option value="breakout">Breakout</option>
             <option value="range_breakout">Range Breakout</option>
             <option value="ma10">MA10 Breakdown</option>
             <option value="ma50">MA50 Breakdown</option>
           </select>
 
-          {/* Breakout-only controls */}
           {trigger === 'breakout' && (
             <>
-              <select
-                value={breakoutBasis}
-                onChange={e => setBreakoutBasis(e.target.value)}
-                title="Breakout Basis"
-                style={{ minWidth: '180px' }}
-              >
+              <select value={breakoutBasis} onChange={e => setBreakoutBasis(e.target.value)} title="Breakout Basis" style={{ minWidth:140 }}>
                 <option value="High">High</option>
                 <option value="Close">Close</option>
               </select>
-              <input
-                type="number"
-                min={1}
+              <select
                 value={breakoutLen}
-                onChange={e => setBreakoutLen(parseInt(e.target.value || '1', 10))}
-                placeholder="Lookback (e.g. 20)"
-                style={{ width: '160px' }}
-              />
+                onChange={e => setBreakoutLen(parseInt(e.target.value || '20', 10))}
+                title="Lookback"
+                style={{ minWidth:90 }}
+              >
+                {[10,15,20,30,50].map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
             </>
           )}
 
-          <button onClick={generate}>Generate</button>
+          <button className="generate" onClick={generate} title="Cmd/Ctrl + Enter">Generate</button>
+
+          <label className="autoToggle">
+            <input type="checkbox" checked={auto} onChange={e => setAuto(e.target.checked)} />
+            Auto
+            <span className={`pulse ${justUpdated ? 'show' : ''}`}>{justUpdated ? 'Updated ✓' : ''}</span>
+          </label>
         </div>
 
         <div className="info">
           <strong>ℹ️ Strategy:</strong> {explanation}
         </div>
 
-        <div style={{ marginTop: '24px' }}>
+        <div style={{ marginTop: 12 }}>
           <StrategyVisuals selected={trigger} />
         </div>
 
