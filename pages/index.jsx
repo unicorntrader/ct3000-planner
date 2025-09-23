@@ -69,6 +69,114 @@ plotshape(trigger, location=location.abovebar, style=shape.labeldown, color=colo
 alertcondition(trigger, title="breakdown Trigger",
   message='{"symbol":"{{ticker}}","setup":"breakdown","basis":"'+basisSrc+'","lookback":'+str.tostring(len)+',"price":{{close}},"volume":{{volume}},"timestamp":"{{time}}","interval":"{{interval}}"}')
 `;
+    } else if (trigger === 'orh') {
+      pine += `// Opening Range High - 5 minute window
+var float or_high = na
+var float or_low = na
+var bool armed = false
+
+// New session detection
+is_new_session = ta.change(time("D"))
+if is_new_session
+    or_high := na
+    or_low := na
+    armed := false
+
+// Opening window: first 5 minutes (9:30-9:35 ET)
+session_start = hour == 9 and minute >= 30 and minute < 35
+if session_start
+    or_high := math.max(nz(or_high, high), high)
+    or_low := math.min(nz(or_low, low), low)
+
+// Arm after opening window closes
+session_closed = hour == 9 and minute >= 35 and not na(or_high) and not armed
+if session_closed
+    armed := true
+
+// Trigger: break above OR high (one-shot)
+trigger = armed and high > or_high and not na(or_high)
+if trigger
+    armed := false
+
+// Plots
+plot(or_high, "OR High", color=color.blue, linewidth=2)
+plot(or_low, "OR Low", color=color.red, linewidth=1)
+plotshape(trigger, location=location.belowbar, style=shape.labelup, color=color.green, text="🚨")
+
+// Alert
+alertcondition(trigger, title="orh Trigger",
+  message='{"symbol":"{{ticker}}","setup":"orh","orHigh":'+str.tostring(or_high)+',"orLow":'+str.tostring(or_low)+',"price":{{close}},"volume":{{volume}},"timestamp":"{{time}}","interval":"{{interval}}"}')
+`;
+    } else if (trigger === 'orl') {
+      pine += `// Opening Range Low - 5 minute window
+var float or_high = na
+var float or_low = na
+var bool armed = false
+
+// New session detection
+is_new_session = ta.change(time("D"))
+if is_new_session
+    or_high := na
+    or_low := na
+    armed := false
+
+// Opening window: first 5 minutes (9:30-9:35 ET)
+session_start = hour == 9 and minute >= 30 and minute < 35
+if session_start
+    or_high := math.max(nz(or_high, high), high)
+    or_low := math.min(nz(or_low, low), low)
+
+// Arm after opening window closes
+session_closed = hour == 9 and minute >= 35 and not na(or_low) and not armed
+if session_closed
+    armed := true
+
+// Trigger: break below OR low (one-shot)
+trigger = armed and low < or_low and not na(or_low)
+if trigger
+    armed := false
+
+// Plots
+plot(or_high, "OR High", color=color.blue, linewidth=1)
+plot(or_low, "OR Low", color=color.red, linewidth=2)
+plotshape(trigger, location=location.abovebar, style=shape.labeldown, color=color.red, text="🚨")
+
+// Alert
+alertcondition(trigger, title="orl Trigger",
+  message='{"symbol":"{{ticker}}","setup":"orl","orHigh":'+str.tostring(or_high)+',"orLow":'+str.tostring(or_low)+',"price":{{close}},"volume":{{volume}},"timestamp":"{{time}}","interval":"{{interval}}"}')
+`;
+    } else if (trigger === 'range_breakout') {
+      pine += `three_red_then_green = close[4] < open[4] and close[3] < open[3] and close[2] < open[2] and close[1] > open[1]
+setup_high = high[1]
+setup_low  = math.min(low[4], math.min(low[3], low[2]))
+
+var float range_high = na
+var float range_low  = na
+var bool  armed      = false
+
+if three_red_then_green
+    range_high := setup_high
+    range_low  := setup_low
+    armed      := true
+
+range_established   = armed and not na(range_high) and not na(range_low)
+breakout_condition  = range_established and high > range_high + syminfo.mintick
+invalidated         = range_established and low < range_low
+
+if breakout_condition or invalidated
+    armed      := false
+    range_high := na
+    range_low  := na
+
+plot(range_established ? range_high : na, "Range High", color=color.blue)
+plot(range_established ? range_low  : na, "Range Low",  color=color.red)
+
+trigger = breakout_condition
+plotshape(trigger, location=location.belowbar, style=shape.labelup, color=color.green, text="🚨")
+
+alertcondition(trigger, title="range_breakout Trigger",
+  message='{"symbol":"{{ticker}}","setup":"range_breakout","price":{{close}},"rangeHigh":'+str.tostring(range_high)+',"rangeLow":'+str.tostring(range_low)+',"volume":{{volume}},"timestamp":"{{time}}","interval":"{{interval}}"}')
+`;
     } else if (trigger === 'bullish_reversal') {
       pine += `three_red_then_green = close[4] < open[4] and close[3] < open[3] and close[2] < open[2] and close[1] > open[1]
 setup_high = high[1]
@@ -185,6 +293,11 @@ alertcondition(trigger, title="ma50 Trigger",
           return `Closes above the prior ${breakoutLen}-bar ${breakoutBasis.toLowerCase()} (excludes current bar) for a classic, cleaner breakout.`;
         case 'breakdown':
           return `Closes below the prior ${breakdownLen}-bar ${breakdownBasis.toLowerCase()} (excludes current bar) for a classic, cleaner breakdown.`;
+        case 'orh':
+          return 'Locks the 5-minute opening window (9:30-9:35 ET), then fires intrabar on a break of the OR High (one-shot).';
+        case 'orl':
+          return 'Locks the 5-minute opening window (9:30-9:35 ET), then fires intrabar on a break of the OR Low (one-shot).';
+        case 'range_breakout':
         case 'bullish_reversal':
           return '3 red candles then 1 green; once armed, fires intrabar on a break above the green candle's high (one-shot).';
         case 'bearish_reversal':
@@ -303,6 +416,9 @@ alertcondition(trigger, title="ma50 Trigger",
           <select value={trigger} onChange={e => setTrigger(e.target.value)} style={{ minWidth:220 }}>
             <option value="breakout">Breakout</option>
             <option value="breakdown">Breakdown</option>
+            <option value="orh">Opening Range High</option>
+            <option value="orl">Opening Range Low</option>
+            <option value="range_breakout">Range Breakout</option>
             <option value="bullish_reversal">Bullish Reversal</option>
             <option value="bearish_reversal">Bearish Reversal</option>
             <option value="ma10">MA10 Breakdown</option>
