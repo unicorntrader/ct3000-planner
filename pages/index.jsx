@@ -298,6 +298,7 @@ alertcondition(trigger, title="ma50 Trigger",
         case 'orl':
           return 'Locks the 5-minute opening window (9:30-9:35 ET), then fires intrabar on a break of the OR Low (one-shot).';
         case 'range_breakout':
+          return '3 red then a green reversal. Armed on the green; fires intrabar on a break above its high.';
         case 'bullish_reversal':
           return '3 red candles then 1 green; once armed, fires intrabar on a break above the green candle's high (one-shot).';
         case 'bearish_reversal':
